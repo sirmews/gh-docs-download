@@ -39,3 +39,8 @@ gh-docs-download.exe
 
 # Downloaded documentation files
 downloads/
+
+# Test directories and output
+test-*/
+test-output/
+test-current/

@@ -1,13 +1,13 @@
 # GitHub Documentation Download Tool
 
-A CLI tool to download documentation files from specific paths in GitHub repositories using tree URLs. This tool uses git sparse checkout to efficiently download only the documentation files you need from a specific directory path.
+A CLI tool to download documentation files from specific paths in GitHub repositories using tree URLs. This tool uses git sparse checkout to efficiently download only the documentation files you need from a specific directory path. Files are downloaded with a flattened directory structure, preserving only the filenames.
 
 ## Features
 
 - **Direct Path Targeting**: Downloads from specific GitHub tree URLs (e.g., `/tree/main/docs`)
 - **Git Sparse Checkout**: Efficient downloads without cloning entire repositories
 - **Smart File Detection**: Identifies documentation files by extension and common naming patterns
-- **Directory Structure Preservation**: Maintains the original folder structure when downloading
+- **Flattened Output**: Downloads files directly to the output directory without preserving subdirectory structure
 - **List Mode**: Preview files without downloading
 - **No Authentication Required**: Works with public repositories without tokens
 
@@ -37,6 +37,9 @@ gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs"
 # List files without downloading
 gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --list-only
 
+# Download to current directory
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --output .
+
 # Specify output directory
 gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --output ./my-docs
 ```
@@ -55,12 +58,17 @@ gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --recursi
 
 ```bash
 # Download Rust documentation from specific path
+# All files will be placed directly in rust-docs/ without subdirectories
 gh-docs-download --repo "https://github.com/rust-lang/rust/tree/main/src/doc" --output rust-docs
 
 # Preview TanStack Router documentation
 gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs" --list-only
 
-# Download nested documentation structure
+# Download React Native versioned docs to current directory
+# Files like website/versioned_docs/version-0.80/view.md become ./view.md
+gh-docs-download --repo "https://github.com/facebook/react-native-website/tree/main/website/versioned_docs/version-0.80" --output .
+
+# Download nested documentation structure - all files flattened
 gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs/router/framework/react/guide" --output react-guide-docs
 ```
 

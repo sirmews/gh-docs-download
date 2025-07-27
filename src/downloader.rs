@@ -184,7 +184,6 @@ impl GitHubDocsDownloader {
         {
             let file_name = entry.file_name().to_string_lossy();
             if Self::is_documentation_file(&file_name) {
-                let relative_path = entry.path().strip_prefix(&repo_path)?;
                 let file_size = entry
                     .metadata()
                     .map_err(GitHubDocsError::WalkDirError)?
@@ -192,17 +191,20 @@ impl GitHubDocsDownloader {
 
                 // Copy file immediately while temp directory exists
                 if !self.config.list_only {
-                    let dest_path = Path::new(&self.config.output_dir).join(relative_path);
-                    if let Some(parent) = dest_path.parent() {
-                        std::fs::create_dir_all(parent)?;
-                    }
+                    // Flatten structure: use only the filename, not the full path
+                    let dest_path = Path::new(&self.config.output_dir).join(entry.file_name());
+
+                    // Create output directory if it doesn't exist
+                    std::fs::create_dir_all(&self.config.output_dir)?;
                     std::fs::copy(entry.path(), &dest_path)?;
                 }
 
                 // Create documentation file record (URL not needed for git approach)
+                // For flattened structure, use just the filename as the path
+                let flattened_path = Path::new(file_name.as_ref());
                 doc_files.push(DocumentationFile {
                     name: file_name.to_string().into(),
-                    path: FilePath::new(relative_path.to_path_buf()),
+                    path: FilePath::new(flattened_path.to_path_buf()),
                     download_url: crate::types::DownloadUrl::parse("file://downloaded")?,
                     size: file_size.into(),
                     docs_directory: docs_dir.clone(),
