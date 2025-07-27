@@ -1,6 +1,6 @@
 [package]
 name = "gh-docs-download"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Navishkar Rao <sirmews@gmail.com>"]
 description = "Efficient CLI tool for downloading documentation from GitHub repositories using git sparse checkout. Perfect for RAG applications and documentation collection."
