@@ -30,6 +30,9 @@ Thumbs.db
 .env
 .env.local
 
+# Claude Hook Advisor configuration (auto-generated metadata)
+.claude-hook-advisor.toml
+
 # Output binaries (if built outside target/)
 gh-docs-download
 gh-docs-download.exe
