@@ -4,430 +4,332 @@ This guide covers common issues and their solutions when using the GitHub Docume
 
 ## Common Issues
 
-### 1. Repository Not Found
+### 1. Invalid Repository Format
 
 #### Symptoms
 ```
-Error: Repository not found or access denied
+Error: Invalid repository format: Expected GitHub tree URL format
+```
+
+#### Possible Causes
+- Using old repository slug format instead of tree URL
+- Missing `/tree/branch/path` in the URL
+- Incorrect URL structure
+
+#### Solutions
+
+**Use Correct Tree URL Format**
+```bash
+# ✅ Correct format:
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs"
+
+# ❌ Incorrect formats:
+gh-docs-download --repo "owner/repo"                           # Old slug format
+gh-docs-download --repo "https://github.com/owner/repo"        # Missing tree path
+gh-docs-download --repo "https://github.com/owner/repo/docs"   # Missing tree/branch
+```
+
+**Verify URL in Browser**
+```bash
+# Copy the tree URL from GitHub's web interface
+# Navigate to the documentation directory in GitHub
+# Copy the URL from the address bar
+# Example: https://github.com/TanStack/router/tree/main/docs
+```
+
+### 2. Repository or Path Not Found
+
+#### Symptoms
+```
+Error: Git operation failed: git clone --no-checkout --depth 1 <url>
+fatal: repository 'https://github.com/owner/repo.git' not found
 ```
 
 #### Possible Causes
 - Repository doesn't exist
-- Repository is private and requires authentication
-- Incorrect repository format
+- Repository name is misspelled
+- Documentation path doesn't exist
+- Repository is private (our tool only works with public repos)
 
 #### Solutions
 
-**Check Repository Exists**
+**Verify Repository Exists**
 ```bash
-# Verify the repository exists by visiting in browser
+# Check repository exists by visiting in browser
 https://github.com/owner/repo
 
-# Try with correct case-sensitive names
-gh-docs-download --repo Microsoft/vscode  # Correct
-gh-docs-download --repo microsoft/vscode  # May also work
+# Ensure exact case-sensitive spelling
+gh-docs-download --repo "https://github.com/Microsoft/vscode/tree/main/docs"  # Correct case
+```
+
+**Verify Documentation Path Exists**
+```bash
+# Navigate to the path in GitHub web interface first
+# Example: Check if https://github.com/owner/repo/tree/main/docs exists
+# If the path doesn't exist, try common alternatives:
+
+# Common documentation paths:
+--repo "https://github.com/owner/repo/tree/main/docs"
+--repo "https://github.com/owner/repo/tree/main/documentation"
+--repo "https://github.com/owner/repo/tree/main/doc"
+--repo "https://github.com/owner/repo/tree/main/guide"
 ```
 
 **For Private Repositories**
 ```bash
-# Use GitHub token
-export GITHUB_TOKEN=your_token_here
-gh-docs-download --repo private-org/private-repo
-
-# Or pass token directly
-gh-docs-download --repo private-org/private-repo --token your_token
-```
-
-**Check Repository Format**
-```bash
-# Correct formats:
-gh-docs-download --repo owner/repo
-gh-docs-download --repo https://github.com/owner/repo
-gh-docs-download --repo https://github.com/owner/repo.git
-
-# Incorrect formats:
-gh-docs-download --repo github.com/owner/repo        # Missing protocol
-gh-docs-download --repo owner-repo                   # Missing slash
-```
-
-### 2. API Rate Limiting
-
-#### Symptoms
-```
-Rate limited or access denied. Consider using --token with a GitHub token.
-```
-
-#### Explanation
-GitHub API has rate limits:
-- **Unauthenticated**: 60 requests per hour per IP
-- **Authenticated**: 5,000 requests per hour per user
-
-#### Solutions
-
-**Use Authentication**
-```bash
-# Get a GitHub token from https://github.com/settings/tokens
-export GITHUB_TOKEN=ghp_your_token_here
-gh-docs-download --repo owner/repo
-```
-
-**Use Git Clone Method**
-```bash
-# Bypass API entirely
-gh-docs-download --repo owner/repo --use-git
-```
-
-**Wait and Retry**
-```bash
-# Check rate limit status
-curl -H "Authorization: token your_token" https://api.github.com/rate_limit
-
-# Wait for rate limit reset (shown in response)
+# Our tool only works with public repositories
+# Private repositories are not supported in the current git-only approach
+# Use the GitHub web interface to download private repository documentation
 ```
 
 ### 3. No Documentation Found
 
 #### Symptoms
 ```
-No documentation directories found.
+Found 0 documentation files
 ```
 
 #### Possible Causes
-- Repository has no documentation directories
-- Documentation is in non-standard locations
-- Repository structure doesn't match detection patterns
+- The specified path contains no documentation files
+- Files don't match documentation patterns
+- Path exists but is empty
 
 #### Solutions
 
-**Check What the Tool Looks For**
-The tool searches for directories containing "doc" in their name:
-- `docs/`
-- `documentation/`
-- `doc/`
-- `api-docs/`
-- `user-docs/`
-
-**Manual Verification**
+**Preview Path Contents**
 ```bash
-# List all files to see what's available
-gh-docs-download --repo owner/repo --list-only
+# Use --list-only to see what's in the path
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --list-only
 
-# Check repository structure on GitHub
-# Visit: https://github.com/owner/repo
+# If no files are found, the path might not contain documentation files
 ```
 
-**Alternative Approaches**
+**Check File Types**
 ```bash
-# Some repositories have docs in root directory
-# The tool will still find README.md, CHANGELOG.md, etc.
+# The tool looks for these file extensions:
+# .md, .mdx, .markdown, .txt, .rst, .adoc, .asciidoc
+# .org, .tex, .pdf, .html, .htm, .xml
 
-# For repositories with non-standard structure,
-# consider downloading the entire repository
-git clone https://github.com/owner/repo.git
+# And these common names:
+# readme, changelog, license, guide, tutorial, etc.
+
+# If your files have different extensions, they won't be detected
 ```
 
-### 4. Download Failures
+**Try Different Paths**
+```bash
+# Try different common documentation locations:
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --list-only
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/documentation" --list-only
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/wiki" --list-only
+```
+
+### 4. Git Command Not Found
 
 #### Symptoms
 ```
-Error downloading path/to/file.md: Network error
-Failed to download file.pdf
+Error: No such file or directory (os error 2)
 ```
 
 #### Possible Causes
-- Network connectivity issues
-- Large files timing out
-- GitHub server issues
-- Insufficient disk space
+- Git is not installed on the system
+- Git is not in the PATH
+- Git installation is corrupted
 
 #### Solutions
 
-**Check Network Connectivity**
+**Install Git**
 ```bash
-# Test basic connectivity
-ping github.com
+# On macOS (using Homebrew):
+brew install git
 
-# Test API access
-curl -I https://api.github.com/repos/owner/repo
+# On Ubuntu/Debian:
+sudo apt-get install git
+
+# On Windows:
+# Download from https://git-scm.com/download/win
+
+# Verify installation:
+git --version
 ```
 
-**Retry with Git Method**
+**Check PATH**
 ```bash
-# More reliable for large files
-gh-docs-download --repo owner/repo --use-git
-```
+# Verify git is in PATH
+which git
 
-**Check Disk Space**
-```bash
-# Check available space
-df -h .
-
-# Preview download size first
-gh-docs-download --repo owner/repo --list-only
+# If not found, add git to your PATH or use full path
+export PATH="/usr/local/bin:$PATH"
 ```
 
 ### 5. Permission Denied
 
 #### Symptoms
 ```
-Permission denied (publickey)
-Error: Git clone failed
+Error: Permission denied (os error 13)
 ```
 
 #### Possible Causes
-- SSH key not configured for git clone
-- Insufficient permissions for output directory
+- Insufficient permissions to create output directory
+- Output directory is read-only
+- Disk space issues
 
 #### Solutions
 
-**For Git Clone Issues**
+**Check Output Directory Permissions**
 ```bash
-# The tool uses HTTPS, not SSH, so this shouldn't occur
-# If it does, ensure git is properly installed
-git --version
+# Ensure you have write permissions to the output directory
+ls -la /path/to/output/directory
 
-# Test git clone manually
-git clone https://github.com/owner/repo.git
+# Create output directory with proper permissions
+mkdir -p ./my-docs
+chmod 755 ./my-docs
+
+# Use a different output directory
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --output ./alternative-path
 ```
 
-**For Output Directory Issues**
+**Check Disk Space**
 ```bash
-# Check permissions
-ls -la downloads/
+# Verify sufficient disk space
+df -h
 
-# Use different output directory
-gh-docs-download --repo owner/repo --output ~/my-docs
-
-# Create directory with proper permissions
-mkdir -p ~/docs && chmod 755 ~/docs
-gh-docs-download --repo owner/repo --output ~/docs
+# Clean up temporary files if needed
+rm -rf /tmp/gh-docs-*
 ```
 
-### 6. Large Repository Issues
+### 6. Large Repository Timeout
 
 #### Symptoms
 ```
-Taking very long to complete
-Memory usage high
-Many API requests
+Error: Git operation timed out
 ```
+
+#### Possible Causes
+- Very large repository taking too long to clone
+- Slow network connection
+- Repository has large binary files
 
 #### Solutions
 
-**Use Git Method**
+**Use More Specific Paths**
 ```bash
-# More efficient for large repositories
-gh-docs-download --repo kubernetes/kubernetes --use-git
+# Instead of downloading entire docs directory:
+gh-docs-download --repo "https://github.com/large-org/huge-repo/tree/main/docs"
+
+# Try more specific subdirectories:
+gh-docs-download --repo "https://github.com/large-org/huge-repo/tree/main/docs/api"
+gh-docs-download --repo "https://github.com/large-org/huge-repo/tree/main/docs/guides"
 ```
 
-**Preview First**
+**Preview Before Downloading**
 ```bash
 # Check size before downloading
-gh-docs-download --repo large-org/huge-repo --list-only
+gh-docs-download --repo "https://github.com/large-org/huge-repo/tree/main/docs" --list-only
 ```
 
-**Selective Downloading**
-```bash
-# Currently not supported, but you can:
-# 1. Clone the repository manually
-git clone --depth 1 https://github.com/large-org/huge-repo.git
-
-# 2. Copy only documentation directories
-cp -r huge-repo/docs/ ./my-docs/
-```
-
-## Environment Issues
-
-### 7. Git Not Found
+### 7. Branch or Tag Not Found
 
 #### Symptoms
 ```
-Error: Git clone failed: program not found
+Error: pathspec 'branch-name' did not match any file(s) known to git
 ```
+
+#### Possible Causes
+- Branch or tag name doesn't exist
+- Misspelled branch name
+- Branch was recently deleted
 
 #### Solutions
+
+**Verify Branch Exists**
 ```bash
-# Install git
-# Ubuntu/Debian:
-sudo apt-get install git
+# Check available branches on GitHub web interface
+# Common branch names: main, master, develop, dev
 
-# macOS:
-brew install git
-
-# Windows:
-# Download from https://git-scm.com/download/win
-
-# Verify installation
-git --version
+# Try common branch names:
+--repo "https://github.com/owner/repo/tree/main/docs"
+--repo "https://github.com/owner/repo/tree/master/docs"
+--repo "https://github.com/owner/repo/tree/develop/docs"
 ```
 
-### 8. Rust/Cargo Issues
-
-#### Symptoms
-```
-cargo: command not found
-error: could not compile
-```
-
-#### Solutions
+**Use Specific Tags**
 ```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Update Rust
-rustup update
-
-# Verify installation
-cargo --version
-rustc --version
-```
-
-## Token Issues
-
-### 9. Invalid Token
-
-#### Symptoms
-```
-Bad credentials
-401 Unauthorized
-```
-
-#### Solutions
-```bash
-# Verify token format (should start with ghp_)
-echo $GITHUB_TOKEN
-
-# Test token manually
-curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user
-
-# Generate new token at https://github.com/settings/tokens
-# Required scopes: repo (for private repos) or public_repo (for public repos)
-```
-
-### 10. Token Permissions
-
-#### Symptoms
-```
-Repository not found (but repository exists)
-403 Forbidden
-```
-
-#### Solutions
-```bash
-# Ensure token has correct scopes:
-# - public_repo: for public repositories
-# - repo: for private repositories
-
-# Check token scopes
-curl -H "Authorization: token $GITHUB_TOKEN" -I https://api.github.com/user
-# Look for X-OAuth-Scopes header
-```
-
-## Performance Issues
-
-### 11. Slow Downloads
-
-#### Symptoms
-- Downloads taking very long
-- High memory usage
-- Network timeouts
-
-#### Solutions
-```bash
-# Use git method for better performance
-gh-docs-download --repo owner/repo --use-git
-
-# Check network speed
-curl -o /dev/null -s -w "%{speed_download}\n" https://github.com/
-
-# Monitor system resources
-top
-htop
-```
-
-### 12. High Memory Usage
-
-#### Solutions
-```bash
-# Use git method (more memory efficient)
-gh-docs-download --repo owner/repo --use-git
-
-# Close other applications
-# Monitor memory usage:
-free -h  # Linux
-vm_stat  # macOS
-```
-
-## Debugging
-
-### Enable Debug Output
-
-```bash
-# Set debug logging
-export RUST_LOG=debug
-gh-docs-download --repo owner/repo
-
-# Or for specific components
-export RUST_LOG=reqwest=debug
-gh-docs-download --repo owner/repo
-```
-
-### Manual Testing
-
-```bash
-# Test API access manually
-curl -H "Authorization: token $GITHUB_TOKEN" \
-  https://api.github.com/repos/owner/repo/contents
-
-# Test git clone manually
-git clone --depth 1 https://github.com/owner/repo.git test-clone
-```
-
-### Verbose Output
-
-```bash
-# Add verbose flag (if implemented)
-gh-docs-download --repo owner/repo --verbose
-
-# Or check what files would be downloaded
-gh-docs-download --repo owner/repo --list-only
+# Use specific version tags if available:
+--repo "https://github.com/owner/repo/tree/v1.0.0/docs"
+--repo "https://github.com/owner/repo/tree/release-1.2/docs"
 ```
 
 ## Getting Help
 
-### Check Version
-```bash
-gh-docs-download --version
-```
-
-### View Help
-```bash
-gh-docs-download --help
-```
-
-### Report Issues
+### Debug Information
 When reporting issues, include:
-1. Command used
-2. Error message
-3. Operating system
-4. Rust version (`rustc --version`)
-5. Repository being accessed (if public)
 
-### Community Resources
-- GitHub Issues: Report bugs and feature requests
-- Documentation: Check docs/ directory for detailed guides
-- Examples: See docs/examples.md for usage patterns
+```bash
+# Tool version
+gh-docs-download --version
 
-## Quick Fixes Summary
+# Git version
+git --version
 
-| Issue | Quick Fix |
-|-------|-----------|
-| Rate limited | Add `--token your_token` or `--use-git` |
-| Repo not found | Check spelling, add token for private repos |
-| No docs found | Use `--list-only` to see what's available |
-| Download fails | Try `--use-git` method |
-| Permission denied | Check output directory permissions |
-| Git not found | Install git |
-| Slow performance | Use `--use-git` for large repositories |
-| High memory | Use `--use-git` method |
-| Invalid token | Generate new token with correct scopes |
+# Operating system
+uname -a
+
+# Command that failed
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --list-only
+```
+
+### Verbose Output
+Unfortunately, the current version doesn't have verbose logging, but you can:
+
+```bash
+# Use --list-only first to verify the path works
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --list-only
+
+# Check if the issue is with a specific path by trying a known working example
+gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs/router/eslint" --list-only
+```
+
+### Known Working Examples
+These URLs are known to work and can be used for testing:
+
+```bash
+# Small documentation directory
+gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs/router/eslint" --list-only
+
+# Medium-sized documentation
+gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs" --list-only
+
+# Rust documentation (larger)
+gh-docs-download --repo "https://github.com/rust-lang/rust/tree/main/src/doc" --list-only
+```
+
+## Performance Tips
+
+### For Large Documentation Directories
+```bash
+# Use --list-only first to estimate size
+gh-docs-download --repo "https://github.com/large-org/huge-repo/tree/main/docs" --list-only
+
+# Download specific sections instead of everything
+gh-docs-download --repo "https://github.com/large-org/huge-repo/tree/main/docs/api"
+gh-docs-download --repo "https://github.com/large-org/huge-repo/tree/main/docs/guides"
+```
+
+### For Slow Networks
+```bash
+# Start with smaller, more specific paths
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs/getting-started"
+
+# Use list-only mode to verify before downloading
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --list-only
+```
+
+### Disk Space Management
+```bash
+# Clean up previous downloads
+rm -rf ./downloads
+
+# Use specific output directories
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --output ./project-docs
+```

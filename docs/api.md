@@ -9,164 +9,319 @@ Command-line arguments structure parsed by `clap`.
 
 ```rust
 struct Args {
-    repo: String,           // GitHub repository URL or slug
+    repo: String,           // GitHub tree URL (e.g., "https://github.com/owner/repo/tree/branch/path")
     output: String,         // Output directory (default: "downloads")
     list_only: bool,        // Only list files without downloading
     recursive: bool,        // Include subdirectories recursively (default: true)
-    token: Option<String>,  // GitHub API token for authentication
-    use_git: bool,          // Force use of git clone instead of GitHub API
 }
 ```
 
 **Fields:**
-- `repo`: Repository identifier in format "owner/repo" or full GitHub URL
+- `repo`: GitHub tree URL in format "https://github.com/owner/repo/tree/branch/path"
 - `output`: Target directory for downloaded documentation files
 - `list_only`: When true, only displays found files without downloading
-- `recursive`: Controls recursive directory traversal (currently always true)
-- `token`: Optional GitHub personal access token for API authentication
-- `use_git`: Forces git clone approach instead of GitHub API
+- `recursive`: Controls recursive directory traversal within the specified path
 
-### `GitHubFile`
-Represents a file or directory from GitHub API response.
+### Core Domain Types
+
+#### `RepoSpec`
+Repository specification combining owner and name.
 
 ```rust
-struct GitHubFile {
-    name: String,                    // File or directory name
-    path: String,                    // Full path from repository root
-    download_url: Option<String>,    // Direct download URL (files only)
-    file_type: String,              // "file" or "dir"
-    size: u64,                      // File size in bytes
+struct RepoSpec {
+    owner: RepoOwner,  // Repository owner (user or organization)
+    name: RepoName,    // Repository name
 }
 ```
 
-**Usage:** Internal structure for deserializing GitHub API responses.
+**Methods:**
+- `new(owner: RepoOwner, name: RepoName) -> Self`: Create repository specification
+- `full_name() -> String`: Get "owner/repo" format string
 
-### `DocumentationFile`
-Represents a discovered documentation file ready for download.
+#### `RepoOwner`
+Validated repository owner identifier.
+
+```rust
+struct RepoOwner(String);
+```
+
+**Methods:**
+- `new(owner: impl AsRef<str>) -> Result<Self, RepoOwnerError>`: Create with validation
+- `as_str() -> &str`: Get owner name as string reference
+
+#### `RepoName`
+Validated repository name identifier.
+
+```rust
+struct RepoName(String);
+```
+
+**Methods:**
+- `new(name: impl AsRef<str>) -> Result<Self, RepoNameError>`: Create with validation
+- `as_str() -> &str`: Get repository name as string reference
+
+### File and Path Types
+
+#### `FileName`
+File name with semantic meaning.
+
+```rust
+struct FileName(String);
+```
+
+**Methods:**
+- `new(name: impl Into<String>) -> Self`: Create file name
+- `as_str() -> &str`: Get name as string reference
+
+#### `FilePath`
+File path with semantic meaning and path operations.
+
+```rust
+struct FilePath(PathBuf);
+```
+
+**Methods:**
+- `new(path: impl Into<PathBuf>) -> Self`: Create file path
+- `as_path() -> &Path`: Get path reference
+- `as_string_lossy() -> Cow<str>`: Get path as string
+
+#### `DownloadUrl`
+Validated download URL.
+
+```rust
+struct DownloadUrl(Url);
+```
+
+**Methods:**
+- `new(url: Url) -> Self`: Create from validated URL
+- `parse(url: impl AsRef<str>) -> Result<Self, url::ParseError>`: Parse from string
+- `as_str() -> &str`: Get URL as string reference
+
+#### `FileSizeBytes`
+File size with human-readable formatting.
+
+```rust
+struct FileSizeBytes(u64);
+```
+
+**Methods:**
+- `new(bytes: u64) -> Self`: Create file size
+- `bytes() -> u64`: Get size in bytes
+- `human_readable() -> String`: Get formatted size (e.g., "1.2 MB")
+
+#### `DocsDirectory`
+Documentation directory path.
+
+```rust
+struct DocsDirectory(String);
+```
+
+**Methods:**
+- `new(path: impl Into<String>) -> Self`: Create directory path
+- `as_str() -> &str`: Get path as string reference
+
+### Complete File Metadata
+
+#### `DocumentationFile`
+Complete metadata for a documentation file.
 
 ```rust
 struct DocumentationFile {
-    name: String,           // File name
-    path: String,           // Relative path from repository root
-    download_url: String,   // URL for downloading the file
-    size: u64,             // File size in bytes
-    docs_directory: String, // Parent documentation directory
+    name: FileName,                // Name of the documentation file
+    path: FilePath,                // Path to the file within the repository
+    download_url: DownloadUrl,     // URL for downloading the file content
+    size: FileSizeBytes,           // Size of the file in bytes
+    docs_directory: DocsDirectory, // Documentation directory this file belongs to
 }
 ```
 
-**Usage:** Processed documentation files with all necessary metadata for downloading.
+## Core Configuration
+
+### `DownloadConfig`
+Configuration for the documentation downloader.
+
+```rust
+struct DownloadConfig {
+    output_dir: String,     // Output directory for downloaded files
+    list_only: bool,        // Whether to only list files without downloading
+    recursive: bool,        // Whether to include subdirectories recursively
+    target_path: String,    // Specific path within repository to download
+}
+```
+
+**Methods:**
+- `Default::default()`: Create with default values (output: "downloads", recursive: true, etc.)
+
+## Main Service Classes
 
 ### `GitHubDocsDownloader`
-Main service class handling repository operations.
+Main service class handling git sparse checkout operations.
 
 ```rust
 struct GitHubDocsDownloader {
-    client: Client,         // HTTP client for API requests
-    owner: String,          // Repository owner
-    repo: String,           // Repository name
-    token: Option<String>,  // Authentication token
-    use_git: bool,         // Access method preference
+    repo: RepoSpec,         // Repository specification
+    config: DownloadConfig, // Download configuration
 }
 ```
 
-## Core Methods
+**Constructor:**
+```rust
+fn new(repo: RepoSpec, config: DownloadConfig) -> Self
+```
 
-### `GitHubDocsDownloader::new()`
-Creates a new downloader instance.
+**Core Methods:**
+
+#### `find_docs_directories()`
+Discovers documentation directories using the target path.
 
 ```rust
-fn new(
-    repo_input: &str, 
-    token: Option<String>, 
-    use_git: bool
-) -> Result<Self, Box<dyn std::error::Error>>
+fn find_docs_directories(&self) -> Result<Vec<DocsDirectory>, GitHubDocsError>
+```
+
+**Returns:** List of documentation directories (typically just the target path)
+
+#### `get_all_documentation_files()`
+Retrieves all documentation files from specified directories.
+
+```rust
+fn get_all_documentation_files(
+    &self,
+    docs_dirs: &[DocsDirectory],
+) -> Result<Vec<DocumentationFile>, GitHubDocsError>
 ```
 
 **Parameters:**
-- `repo_input`: Repository identifier (URL or owner/repo format)
-- `token`: Optional GitHub API token
-- `use_git`: Whether to force git clone approach
+- `docs_dirs`: Directories to scan for documentation files
 
-**Returns:** Configured downloader instance or error
+**Returns:** List of documentation files with complete metadata
 
-**Example:**
-```rust
-let downloader = GitHubDocsDownloader::new(
-    "rust-lang/rust", 
-    Some("ghp_token123".to_string()), 
-    false
-)?;
-```
-
-### `parse_repo_input()`
-Parses repository input into owner and repository name.
+#### `download_files()`
+Downloads or lists the provided documentation files.
 
 ```rust
-fn parse_repo_input(input: &str) -> Result<(String, String), Box<dyn std::error::Error>>
-```
-
-**Supported Formats:**
-- `owner/repo`
-- `https://github.com/owner/repo`
-- `https://github.com/owner/repo.git`
-
-**Returns:** Tuple of (owner, repository_name)
-
-### `find_docs_directories()`
-Discovers documentation directories in the repository.
-
-```rust
-async fn find_docs_directories(&self) -> Result<Vec<String>, Box<dyn std::error::Error>>
+fn download_files(&self, files: &[DocumentationFile]) -> Result<(), GitHubDocsError>
 ```
 
 **Behavior:**
-- Uses API approach by default (if token available)
-- Falls back to git clone if no token or `use_git` is true
-- Searches for directories containing "doc" in their name
+- If `config.list_only` is true, prints file summary without downloading
+- Otherwise, files are already downloaded during the git sparse checkout process
 
-**Returns:** List of relative paths to documentation directories
+### CLI Application
 
-### `find_docs_directories_api()`
-API-based documentation directory discovery.
-
-```rust
-async fn find_docs_directories_api(&self) -> Result<Vec<String>, Box<dyn std::error::Error>>
-```
-
-**Features:**
-- Recursive traversal using GitHub Contents API
-- Rate limit aware (returns 403 errors gracefully)
-- Maintains visited set to avoid infinite loops
-
-### `find_docs_directories_git()`
-Git-based documentation directory discovery.
+#### `CliApp`
+CLI application runner that orchestrates the entire operation.
 
 ```rust
-async fn find_docs_directories_git(&self) -> Result<Vec<String>, Box<dyn std::error::Error>>
+struct CliApp {
+    args: Args,
+}
 ```
 
-**Features:**
-- Performs shallow clone (`--depth 1`)
-- Uses local filesystem traversal with `walkdir`
-- No API rate limits
-- Requires git installation
+**Constructor:**
+```rust
+fn new(args: Args) -> Self
+```
 
-### `get_documentation_files()`
-Retrieves all documentation files from a specific directory.
+**Main Method:**
+```rust
+async fn run(&self) -> Result<(), GitHubDocsError>
+```
+
+**Operation Flow:**
+1. Validate arguments
+2. Parse repository specification and extract path from tree URL
+3. Create download configuration
+4. Create downloader
+5. Discover documentation directories
+6. Collect documentation files
+7. Download or list files
+
+## URL Parsing
+
+### Tree URL Parser
+The `Args::parse_repo_spec()` method handles GitHub tree URL parsing.
 
 ```rust
-async fn get_documentation_files(
-    &self,
-    docs_dir: &str,
-) -> Result<Vec<DocumentationFile>, Box<dyn std::error::Error>>
+impl Args {
+    fn parse_repo_spec(&self) -> Result<(RepoSpec, String), GitHubDocsError>
+}
 ```
 
-**Parameters:**
-- `docs_dir`: Path to documentation directory
+**Input Format:** `https://github.com/owner/repo/tree/branch/path`
 
-**Returns:** List of documentation files with metadata
+**Returns:** Tuple of `(RepoSpec, documentation_path)`
 
-### `is_documentation_file()`
+**Example:**
+```rust
+let args = Args {
+    repo: "https://github.com/rust-lang/rust/tree/main/src/doc".to_string(),
+    // ... other fields
+};
+
+let (repo_spec, doc_path) = args.parse_repo_spec()?;
+// repo_spec.owner.as_str() == "rust-lang"
+// repo_spec.name.as_str() == "rust"
+// doc_path == "src/doc"
+```
+
+## Error Handling
+
+### `GitHubDocsError`
+Comprehensive error type for all operations.
+
+```rust
+enum GitHubDocsError {
+    InvalidRepoFormat { input: String },
+    GitOperationFailed { command: String, stderr: Cow<'static, str> },
+    FileError(std::io::Error),
+    WalkDirError(walkdir::Error),
+    UrlParseError(url::ParseError),
+    RepoOwnerValidationError(RepoOwnerError),
+    RepoNameValidationError(RepoNameError),
+}
+```
+
+**Helper Methods:**
+- `no_documentation_found(owner: &str, name: &str) -> Self`: Create "no docs found" error
+- `git_operation_failed(command: String, stderr: impl Into<Cow<'static, str>>) -> Self`: Create git error
+
+### Validation Errors
+
+#### `RepoOwnerError`
+Repository owner validation errors.
+
+```rust
+enum RepoOwnerError {
+    Empty,
+    TooLong { len: usize },
+    InvalidCharacters { owner: String },
+}
+```
+
+#### `RepoNameError`
+Repository name validation errors.
+
+```rust
+enum RepoNameError {
+    Empty,
+    TooLong { len: usize },
+    InvalidCharacters { name: String },
+}
+```
+
+## Git Operations
+
+The tool exclusively uses git sparse checkout for efficient downloads:
+
+### Sparse Checkout Process
+1. **Clone with no checkout**: `git clone --no-checkout --depth 1 <url>`
+2. **Enable sparse checkout**: `git config core.sparseCheckout true`
+3. **Set sparse paths**: Write target path to `.git/info/sparse-checkout`
+4. **Selective checkout**: `git checkout` (only checks out specified paths)
+
+### File Discovery and Classification
+
+#### `is_documentation_file()`
 Determines if a file is considered documentation.
 
 ```rust
@@ -176,7 +331,7 @@ fn is_documentation_file(filename: &str) -> bool
 **Detection Criteria:**
 
 **File Extensions:**
-- Markdown: `.md`, `.markdown`
+- Markdown: `.md`, `.mdx`, `.markdown`
 - Text: `.txt`
 - reStructuredText: `.rst`
 - AsciiDoc: `.adoc`, `.asciidoc`
@@ -186,12 +341,11 @@ fn is_documentation_file(filename: &str) -> bool
 - HTML: `.html`, `.htm`
 - XML: `.xml`
 
-**Common Names:**
+**Common Documentation Names:**
 - `readme`, `changelog`, `changes`, `news`, `history`
-- `license`, `copying`, `authors`, `contributors`
-- `todo`, `install`, `installation`, `usage`
-- `guide`, `tutorial`, `faq`, `api`, `reference`, `manual`
-- `docs`, `documentation`
+- `license`, `copying`, `authors`, `contributors`, `todo`
+- `install`, `installation`, `usage`, `guide`, `tutorial`
+- `faq`, `api`, `reference`, `manual`, `docs`, `documentation`
 
 **Pattern Matching:**
 - Exact match: `README`
@@ -199,130 +353,105 @@ fn is_documentation_file(filename: &str) -> bool
 - With underscore: `README_FIRST`
 - With hyphen: `README-IMPORTANT`
 
-### `download_file()`
-Downloads a single documentation file.
-
-```rust
-async fn download_file(
-    &self,
-    doc_file: &DocumentationFile,
-    output_dir: &str,
-) -> Result<(), Box<dyn std::error::Error>>
-```
-
-**Features:**
-- Preserves directory structure in output
-- Creates parent directories automatically
-- Handles both HTTP downloads (API) and file copying (git)
-- Provides download progress feedback
-
-## Access Methods
-
-The tool supports two distinct access methods:
-
-### GitHub API Method
-**Advantages:**
-- Faster for small repositories
-- No local disk usage
-- Direct file access
-
-**Limitations:**
-- Subject to rate limits (60 requests/hour unauthenticated, 5000/hour authenticated)
-- Requires internet connection
-- May fail on very large repositories
-
-### Git Clone Method
-**Advantages:**
-- No API rate limits
-- Works with any repository size
-- Can work offline after initial clone
-
-**Limitations:**
-- Requires git installation
-- Uses temporary disk space
-- Slower initial setup
-
-## Error Handling
-
-The API uses `Result<T, Box<dyn std::error::Error>>` for comprehensive error handling:
-
-**Common Error Types:**
-- Network errors (connection failures, timeouts)
-- Authentication errors (invalid tokens, insufficient permissions)
-- Repository errors (not found, private without access)
-- File system errors (permission denied, disk full)
-- Git errors (clone failures, missing git binary)
-
-**Error Recovery:**
-- API failures gracefully fall back to git method
-- Individual file download failures don't stop the entire process
-- Rate limit errors provide helpful guidance
-
 ## Usage Examples
 
-### Basic API Usage
+### Basic Library Usage
 ```rust
-use gh_docs_download::GitHubDocsDownloader;
+use gh_docs_download::{
+    downloader::{DownloadConfig, GitHubDocsDownloader},
+    types::{RepoOwner, RepoName, RepoSpec},
+};
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let downloader = GitHubDocsDownloader::new("rust-lang/rust", None, false)?;
-    
-    let docs_dirs = downloader.find_docs_directories().await?;
-    println!("Found directories: {:?}", docs_dirs);
-    
-    for dir in docs_dirs {
-        let files = downloader.get_documentation_files(&dir).await?;
-        for file in files {
-            downloader.download_file(&file, "output").await?;
-        }
-    }
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Parse repository specification
+    let owner = RepoOwner::new("rust-lang")?;
+    let name = RepoName::new("rust")?;
+    let repo = RepoSpec::new(owner, name);
+
+    // Configure the downloader
+    let config = DownloadConfig {
+        output_dir: "docs".to_string(),
+        list_only: false,
+        recursive: true,
+        target_path: "src/doc".to_string(),
+    };
+
+    // Create downloader
+    let downloader = GitHubDocsDownloader::new(repo, config);
+
+    // Discover documentation directories
+    let docs_dirs = downloader.find_docs_directories()?;
+    println!("Found {} documentation directories", docs_dirs.len());
+
+    // Get all documentation files
+    let files = downloader.get_all_documentation_files(&docs_dirs)?;
+    println!("Found {} documentation files", files.len());
+
+    // Download the files
+    downloader.download_files(&files)?;
     
     Ok(())
 }
 ```
 
-### With Authentication
+### CLI Integration
 ```rust
-let token = std::env::var("GITHUB_TOKEN").ok();
-let downloader = GitHubDocsDownloader::new("private/repo", token, false)?;
+use gh_docs_download::cli::{Args, CliApp};
+use clap::Parser;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
+    let app = CliApp::new(args);
+    app.run().await?;
+    Ok(())
+}
 ```
 
-### Force Git Method
-```rust
-let downloader = GitHubDocsDownloader::new("large/repo", None, true)?;
-```
-
-## Performance Considerations
+## Performance Characteristics
 
 ### Memory Usage
-- Files are streamed during download to minimize memory footprint
-- Temporary directories are automatically cleaned up
-- Directory traversal uses iterators for efficiency
+- Minimal memory footprint due to streaming operations
+- Temporary directories automatically cleaned up
+- Efficient file operations during sparse checkout
 
 ### Network Usage
-- API calls are made sequentially to respect rate limits
-- File downloads use efficient streaming
-- Git clones use shallow depth to minimize bandwidth
+- Only downloads the specific documentation path content
+- Uses shallow clone (`--depth 1`) to minimize data transfer
+- No API rate limits since git operations are used exclusively
 
-### Concurrency
-- Currently sequential processing for simplicity
-- Future versions may implement parallel downloads
-- Async/await ready for concurrent operations
+### Disk Usage
+- Creates temporary directory for git operations
+- Files are copied immediately during checkout process
+- Temporary directory is cleaned up automatically
+
+## Dependencies
+
+### Core Dependencies
+- `clap`: CLI argument parsing
+- `url`: URL parsing and validation for GitHub tree URLs
+- `thiserror`: Semantic error type definitions
+- `serde`: Serialization support for types
+
+### Utility Dependencies
+- `walkdir`: Filesystem traversal for file discovery
+- `tempfile`: Temporary directory management for git operations
+
+### System Dependencies
+- `git`: Required system dependency for sparse checkout operations
 
 ## Future API Extensions
 
 The current API is designed for extensibility:
 
 ### Planned Enhancements
-- Parallel download support
-- Custom file filters
-- Progress callbacks
-- Resume capability
-- Compression options
+- Support for multiple tree URLs in a single operation
+- Custom file pattern definitions
+- Progress tracking for large documentation directories
+- Configurable output formats (ZIP, TAR, etc.)
 
 ### Extension Points
 - Custom `DocumentationFile` processors
-- Pluggable authentication methods
-- Configurable file detection rules
-- Alternative output formats
+- Pluggable file detection rules
+- Alternative output destinations (S3, databases, etc.)
+- Support for other version control systems with tree-like URLs

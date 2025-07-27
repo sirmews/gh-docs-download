@@ -1,15 +1,15 @@
 # GitHub Documentation Download Tool
 
-A CLI tool to download documentation files from GitHub repositories. This tool automatically discovers documentation directories (like `docs/`, `documentation/`, etc.) and downloads all documentation-related files while preserving the directory structure.
+A CLI tool to download documentation files from specific paths in GitHub repositories using tree URLs. This tool uses git sparse checkout to efficiently download only the documentation files you need from a specific directory path.
 
 ## Features
 
-- **Automatic Discovery**: Finds all directories containing documentation
+- **Direct Path Targeting**: Downloads from specific GitHub tree URLs (e.g., `/tree/main/docs`)
+- **Git Sparse Checkout**: Efficient downloads without cloning entire repositories
 - **Smart File Detection**: Identifies documentation files by extension and common naming patterns
-- **Flexible Input**: Accepts GitHub URLs or repository slugs (owner/repo)
 - **Directory Structure Preservation**: Maintains the original folder structure when downloading
 - **List Mode**: Preview files without downloading
-- **GitHub API Integration**: Uses GitHub's API for reliable access
+- **No Authentication Required**: Works with public repositories without tokens
 
 ## Installation
 
@@ -28,43 +28,40 @@ cargo install --path .
 ### Basic Usage
 
 ```bash
-# Download docs from a repository slug
-gh-docs-download --repo rust-lang/rust
+# Download docs from a specific path using GitHub tree URL
+gh-docs-download --repo "https://github.com/rust-lang/rust/tree/main/src/doc"
 
-# Download docs from a full GitHub URL
-gh-docs-download --repo https://github.com/microsoft/vscode
+# Download from documentation directory
+gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs"
 
 # List files without downloading
-gh-docs-download --repo owner/repo --list-only
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --list-only
 
 # Specify output directory
-gh-docs-download --repo owner/repo --output ./my-docs
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --output ./my-docs
 ```
 
-### Authentication
-
-For private repositories or to avoid rate limits, provide a GitHub token:
+### Advanced Usage
 
 ```bash
-# Via environment variable
-export GITHUB_TOKEN=your_token_here
-gh-docs-download --repo private/repo
+# Download from nested documentation paths
+gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs/router/eslint"
 
-# Via command line
-gh-docs-download --repo private/repo --token your_token_here
+# Control recursion
+gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs" --recursive false
 ```
 
 ### Examples
 
 ```bash
-# Download Rust documentation
-gh-docs-download --repo rust-lang/rust --output rust-docs
+# Download Rust documentation from specific path
+gh-docs-download --repo "https://github.com/rust-lang/rust/tree/main/src/doc" --output rust-docs
 
-# Preview what would be downloaded from VS Code
-gh-docs-download --repo microsoft/vscode --list-only
+# Preview TanStack Router documentation
+gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs" --list-only
 
-# Download from a specific GitHub URL
-gh-docs-download --repo https://github.com/tokio-rs/tokio --output tokio-docs
+# Download nested documentation structure
+gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs/router/framework/react/guide" --output react-guide-docs
 ```
 
 ## Supported File Types
@@ -95,14 +92,25 @@ The tool automatically detects documentation files based on:
 
 ```
 Options:
-  -r, --repo <REPO>        GitHub repository URL or slug (e.g., "owner/repo")
-  -o, --output <OUTPUT>    Output directory for downloaded files [default: downloads]
-      --list-only          Only list files without downloading
-      --recursive <RECURSIVE>  Include subdirectories recursively [default: true]
-      --token <TOKEN>      GitHub API token for authenticated requests [env: GITHUB_TOKEN]
-  -h, --help              Print help
-  -V, --version           Print version
+  -r, --repo <REPO>           GitHub tree URL (e.g., "https://github.com/owner/repo/tree/branch/path")
+  -o, --output <OUTPUT>       Output directory for downloaded files [default: downloads]
+      --list-only             Only list files without downloading
+      --recursive <RECURSIVE> Include subdirectories recursively [default: true]
+  -h, --help                  Print help
+  -V, --version               Print version
 ```
+
+## URL Format
+
+The tool expects GitHub tree URLs in this format:
+```
+https://github.com/owner/repo/tree/branch/path
+```
+
+Examples:
+- `https://github.com/rust-lang/rust/tree/main/src/doc`
+- `https://github.com/TanStack/router/tree/main/docs`
+- `https://github.com/owner/repo/tree/feature-branch/documentation/api`
 
 ## Development
 
@@ -111,7 +119,8 @@ Options:
 make build
 
 # Run tests
-make test
+make test-unit
+make test-doc
 
 # Format code
 make format

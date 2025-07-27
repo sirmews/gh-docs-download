@@ -44,12 +44,15 @@ make check
 
 #### Testing
 ```bash
-# Build and run with example repository
-make test
+# Run unit tests
+make test-unit
 
-# Test with different repositories
-./target/debug/gh-docs-download --repo rust-lang/rust --list-only
-./target/debug/gh-docs-download --repo microsoft/vscode --list-only
+# Run documentation tests
+make test-doc
+
+# Test with real repositories using tree URLs
+./target/debug/gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs" --list-only
+./target/debug/gh-docs-download --repo "https://github.com/rust-lang/rust/tree/main/src/doc" --list-only
 ```
 
 ## Project Structure
