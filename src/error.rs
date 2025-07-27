@@ -22,19 +22,6 @@ pub enum GitHubDocsError {
         input: String
     },
 
-    /// GitHub API request failed
-    #[error("GitHub API request failed: {status} - {message}")]
-    ApiRequestFailed {
-        /// HTTP status code of the failed request
-        status: u16,
-        /// Error message from the API response
-        message: String
-    },
-
-    /// GitHub API rate limit exceeded
-    #[error("GitHub API rate limit exceeded. Consider using --token with a GitHub token")]
-    RateLimitExceeded,
-
     /// Repository not found or access denied
     #[error("Repository '{owner}/{repo}' not found or access denied")]
     RepositoryNotFound {
@@ -82,21 +69,9 @@ pub enum GitHubDocsError {
     #[error("File system operation failed")]
     FileSystemError(#[from] std::io::Error),
 
-    /// Network request failed
-    #[error("Network request failed")]
-    NetworkError(#[from] reqwest::Error),
-
     /// URL parsing failed
     #[error("URL parsing failed")]
     UrlParseError(#[from] url::ParseError),
-
-    /// HTTP header parsing failed
-    #[error("HTTP header parsing failed")]
-    HeaderError(#[from] reqwest::header::InvalidHeaderValue),
-
-    /// JSON parsing failed
-    #[error("JSON parsing failed")]
-    JsonError(#[from] serde_json::Error),
 
     /// Path manipulation failed
     #[error("Path manipulation failed")]
@@ -116,17 +91,6 @@ pub enum GitHubDocsError {
 }
 
 impl GitHubDocsError {
-    /// Create a new API request failed error from a response.
-    pub fn from_response_status(status: reqwest::StatusCode, message: impl Into<String>) -> Self {
-        if status == reqwest::StatusCode::FORBIDDEN {
-            Self::RateLimitExceeded
-        } else {
-            Self::ApiRequestFailed {
-                status: status.as_u16(),
-                message: message.into(),
-            }
-        }
-    }
 
     /// Create a repository not found error.
     pub fn repository_not_found(owner: impl Into<String>, repo: impl Into<String>) -> Self {
@@ -160,26 +124,6 @@ impl GitHubDocsError {
         }
     }
 
-    /// Check if this error indicates a rate limit was exceeded.
-    pub fn is_rate_limit(&self) -> bool {
-        matches!(self, Self::RateLimitExceeded)
-    }
-
-    /// Check if this error indicates a network-related issue.
-    pub fn is_network_error(&self) -> bool {
-        matches!(
-            self,
-            Self::NetworkError(_) | Self::ApiRequestFailed { .. } | Self::RateLimitExceeded
-        )
-    }
-
-    /// Check if this error indicates a repository access issue.
-    pub fn is_repository_access_error(&self) -> bool {
-        matches!(
-            self,
-            Self::RepositoryNotFound { .. } | Self::RateLimitExceeded
-        )
-    }
 }
 
 /// Error type for repository owner validation.

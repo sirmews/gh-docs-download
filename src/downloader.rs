@@ -1,11 +1,10 @@
-//! File downloader with support for both API and git-based approaches.
+//! File downloader using git clone approach.
 //!
-//! This module provides the core downloading functionality with support
-//! for different data sources and output formats.
+//! This module provides the core downloading functionality using git clone
+//! to access repository contents locally.
 
 use crate::error::{GitHubDocsError, Result};
-use crate::github::GitHubClient;
-use crate::types::{DocumentationFile, DocsDirectory, FilePath, GitHubToken, RepoSpec};
+use crate::types::{DocumentationFile, DocsDirectory, FilePath, RepoSpec};
 use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
@@ -20,8 +19,8 @@ pub struct DownloadConfig {
     pub list_only: bool,
     /// Whether to include subdirectories recursively
     pub recursive: bool,
-    /// Whether to use git clone instead of GitHub API
-    pub use_git: bool,
+    /// Specific path within repository to download
+    pub target_path: String,
 }
 
 impl Default for DownloadConfig {
@@ -30,18 +29,18 @@ impl Default for DownloadConfig {
             output_dir: "downloads".to_string(),
             list_only: false,
             recursive: true,
-            use_git: false,
+            target_path: "docs".to_string(),
         }
     }
 }
 
-/// Documentation downloader that supports multiple data sources.
+/// Documentation downloader using git clone approach.
 ///
-/// This downloader can fetch documentation files using either the GitHub API
-/// or by cloning the repository with git. It automatically discovers documentation
-/// directories and filters files based on common documentation patterns.
+/// This downloader fetches documentation files by cloning the repository with git.
+/// It automatically discovers documentation directories and filters files based on 
+/// common documentation patterns.
 pub struct GitHubDocsDownloader {
-    github_client: GitHubClient,
+    repo: RepoSpec,
     config: DownloadConfig,
 }
 
@@ -51,23 +50,15 @@ impl GitHubDocsDownloader {
     /// # Arguments
     ///
     /// * `repo` - Repository specification (owner/name)
-    /// * `token` - Optional GitHub API token for authentication
     /// * `config` - Download configuration
-    ///
-    /// # Errors
-    ///
-    /// Returns `GitHubDocsError` if the GitHub client cannot be created.
     pub fn new(
         repo: RepoSpec,
-        token: Option<GitHubToken>,
         config: DownloadConfig,
-    ) -> Result<Self> {
-        let github_client = GitHubClient::new(repo, token)?;
-
-        Ok(Self {
-            github_client,
+    ) -> Self {
+        Self {
+            repo,
             config,
-        })
+        }
     }
 
     /// Discover all documentation directories in the repository.
@@ -76,56 +67,14 @@ impl GitHubDocsDownloader {
     ///
     /// Returns `GitHubDocsError` if directory discovery fails.
     pub async fn find_docs_directories(&self) -> Result<Vec<DocsDirectory>> {
-        if self.config.use_git {
-            self.find_docs_directories_git().await
-        } else {
-            self.github_client.find_docs_directories().await
-        }
+        self.find_docs_directories_git().await
     }
 
     /// Find documentation directories using git clone approach.
     async fn find_docs_directories_git(&self) -> Result<Vec<DocsDirectory>> {
-        println!("Using git clone for directory discovery...");
-
-        // Create temporary directory and clone
-        let temp_dir = TempDir::new()?;
-        let repo_path = temp_dir.path().join(self.github_client.repo().name.as_str());
-
-        let clone_url = format!(
-            "https://github.com/{}/{}.git",
-            self.github_client.repo().owner.as_str(),
-            self.github_client.repo().name.as_str()
-        );
-
-        let output = Command::new("git")
-            .args(&["clone", "--depth", "1", &clone_url])
-            .current_dir(temp_dir.path())
-            .output()?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(GitHubDocsError::git_operation_failed(
-                format!("git clone {}", clone_url),
-                stderr,
-            ));
-        }
-
-        // Find documentation directories in the cloned repository
-        let mut docs_dirs = Vec::new();
-        
-        for entry in WalkDir::new(&repo_path)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_dir())
-        {
-            let dir_name = entry.file_name().to_string_lossy();
-            if Self::is_documentation_directory(&dir_name) {
-                let relative_path = entry.path().strip_prefix(&repo_path)?;
-                docs_dirs.push(DocsDirectory::new(relative_path.to_string_lossy()));
-            }
-        }
-
-        Ok(docs_dirs)
+        println!("Using sparse checkout for path: {}", self.config.target_path);
+        // Return the target path directly since we always have one from the tree URL
+        Ok(vec![DocsDirectory::new(self.config.target_path.clone())])
     }
 
     /// Get all documentation files from the specified directories.
@@ -146,11 +95,7 @@ impl GitHubDocsDownloader {
         for docs_dir in docs_dirs {
             println!("Scanning {}...", docs_dir);
             
-            let files = if self.config.use_git {
-                self.get_documentation_files_git(docs_dir).await?
-            } else {
-                self.github_client.get_documentation_files(docs_dir).await?
-            };
+            let files = self.get_documentation_files_git(docs_dir).await?;
 
             println!("Found {} documentation files in {}", files.len(), docs_dir);
             for file in &files {
@@ -170,23 +115,59 @@ impl GitHubDocsDownloader {
     ) -> Result<Vec<DocumentationFile>> {
         // Create temporary directory and clone
         let temp_dir = TempDir::new()?;
-        let repo_path = temp_dir.path().join(self.github_client.repo().name.as_str());
+        let repo_path = temp_dir.path().join(self.repo.name.as_str());
 
         let clone_url = format!(
             "https://github.com/{}/{}.git",
-            self.github_client.repo().owner.as_str(),
-            self.github_client.repo().name.as_str()
+            self.repo.owner.as_str(),
+            self.repo.name.as_str()
         );
 
+        // Use sparse checkout for the specific documentation path
+        // Clone with no checkout
         let output = Command::new("git")
-            .args(&["clone", "--depth", "1", &clone_url])
+            .args(&["clone", "--no-checkout", "--depth", "1", &clone_url])
             .current_dir(temp_dir.path())
             .output()?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(GitHubDocsError::git_operation_failed(
-                format!("git clone {}", clone_url),
+                format!("git clone --no-checkout {}", clone_url),
+                stderr,
+            ));
+        }
+
+        // Enable sparse checkout
+        let output = Command::new("git")
+            .args(&["config", "core.sparseCheckout", "true"])
+            .current_dir(&repo_path)
+            .output()?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(GitHubDocsError::git_operation_failed(
+                "git config core.sparseCheckout true".to_string(),
+                stderr,
+            ));
+        }
+
+        // Set sparse checkout paths
+        let sparse_info_dir = repo_path.join(".git").join("info");
+        std::fs::create_dir_all(&sparse_info_dir)?;
+        let sparse_checkout_file = sparse_info_dir.join("sparse-checkout");
+        std::fs::write(&sparse_checkout_file, format!("{}/*\n", docs_dir.as_str()))?;
+
+        // Checkout the specified paths
+        let output = Command::new("git")
+            .args(&["checkout"])
+            .current_dir(&repo_path)
+            .output()?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(GitHubDocsError::git_operation_failed(
+                "git checkout".to_string(),
                 stderr,
             ));
         }
@@ -208,11 +189,20 @@ impl GitHubDocsDownloader {
                 let relative_path = entry.path().strip_prefix(&repo_path)?;
                 let file_size = entry.metadata().map_err(|e| GitHubDocsError::WalkDirError(e))?.len();
 
-                // For git approach, we'll use file:// URLs for local access
+                // Copy file immediately while temp directory exists
+                if !self.config.list_only {
+                    let dest_path = Path::new(&self.config.output_dir).join(&relative_path);
+                    if let Some(parent) = dest_path.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    std::fs::copy(entry.path(), &dest_path)?;
+                }
+
+                // Create documentation file record (URL not needed for git approach)
                 doc_files.push(DocumentationFile {
                     name: file_name.to_string().into(),
                     path: FilePath::new(relative_path.to_path_buf()),
-                    download_url: crate::types::DownloadUrl::parse(&format!("file://{}", entry.path().display()))?,
+                    download_url: crate::types::DownloadUrl::parse("file://downloaded")?,
                     size: file_size.into(),
                     docs_directory: docs_dir.clone(),
                 });
@@ -222,69 +212,22 @@ impl GitHubDocsDownloader {
         Ok(doc_files)
     }
 
-    /// Download all files to the configured output directory.
+    /// Show download summary for files.
     ///
     /// # Arguments
     ///
-    /// * `files` - Documentation files to download
-    ///
-    /// # Errors
-    ///
-    /// Returns `GitHubDocsError` if downloading fails.
+    /// * `files` - Documentation files that were processed
     pub async fn download_files(&self, files: &[DocumentationFile]) -> Result<()> {
         if self.config.list_only {
             self.print_file_summary(files);
             return Ok(());
         }
 
-        println!("Downloading {} files to {}...", files.len(), self.config.output_dir);
-        std::fs::create_dir_all(&self.config.output_dir)?;
-
-        let mut success_count = 0;
-        let mut error_count = 0;
-
-        for doc_file in files {
-            match self.download_single_file(doc_file).await {
-                Ok(()) => {
-                    success_count += 1;
-                    println!("Downloaded: {}", doc_file.path);
-                }
-                Err(e) => {
-                    error_count += 1;
-                    eprintln!("Error downloading {}: {}", doc_file.path, e);
-                }
-            }
-        }
-
+        // Files are already downloaded during get_documentation_files_git
         println!("\nDownload complete!");
-        println!("  Successful: {}", success_count);
-        if error_count > 0 {
-            println!("  Failed: {}", error_count);
-        }
-
-        Ok(())
-    }
-
-    /// Download a single file to the output directory.
-    async fn download_single_file(&self, doc_file: &DocumentationFile) -> Result<()> {
-        // Create the full path maintaining directory structure
-        let file_path = Path::new(&self.config.output_dir).join(doc_file.path.as_path());
-
-        // Create parent directories if they don't exist
-        if let Some(parent) = file_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-
-        if doc_file.download_url.as_str().starts_with("file://") {
-            // Local file from git clone - copy directly
-            let source_path = doc_file.download_url.as_str().strip_prefix("file://").unwrap();
-            std::fs::copy(source_path, &file_path)?;
-        } else {
-            // Remote file from API - download via HTTP
-            let content = self.github_client.download_file_content(doc_file).await?;
-            std::fs::write(&file_path, content)?;
-        }
-
+        println!("  Downloaded {} files to {}", files.len(), self.config.output_dir);
+        
+        self.print_file_summary(files);
         Ok(())
     }
 
@@ -309,26 +252,13 @@ impl GitHubDocsDownloader {
         }
     }
 
-    /// Check if a directory name suggests it contains documentation.
-    fn is_documentation_directory(name: &str) -> bool {
-        let name_lower = name.to_lowercase();
-        let doc_indicators = [
-            "doc", "docs", "documentation", "guide", "guides", "manual", "wiki",
-            "readme", "tutorial", "tutorials", "reference", "api", "book", "books",
-        ];
-
-        doc_indicators.iter().any(|indicator| {
-            name_lower.contains(indicator)
-        })
-    }
-
     /// Check if a file appears to be documentation based on its name and extension.
     fn is_documentation_file(filename: &str) -> bool {
         let filename_lower = filename.to_lowercase();
 
         // Check file extensions
         let doc_extensions = [
-            ".md", ".markdown", ".txt", ".rst", ".adoc", ".asciidoc",
+            ".md", ".mdx", ".markdown", ".txt", ".rst", ".adoc", ".asciidoc",
             ".org", ".tex", ".pdf", ".html", ".htm", ".xml",
         ];
 
@@ -354,6 +284,6 @@ impl GitHubDocsDownloader {
 
     /// Get the repository specification.
     pub fn repo(&self) -> &RepoSpec {
-        self.github_client.repo()
+        &self.repo
     }
 }

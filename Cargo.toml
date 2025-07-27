@@ -12,20 +12,16 @@ categories = ["command-line-utilities", "development-tools"]
 [dependencies]
 clap = { version = "4.5.41", features = ["derive"] }
 serde = { version = "1.0.219", features = ["derive", "serde_derive", "rc"] }
-serde_json = "1.0.141"
-reqwest = { version = "0.11", features = ["json"] }
 tokio = { version = "1.0", features = ["full"] }
 url = { version = "2.4", features = ["serde"] }
-regex = "1.10"
 tempfile = "3.8"
 walkdir = "2.4"
 thiserror = "1.0"
-async-recursion = "1.0"
 
 [lints.clippy]
-all = "warn"
-pedantic = "warn"
-cargo = "warn"
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
 # Disable overly strict lints for practical development
 multiple_crate_versions = "allow"
 missing_docs_in_private_items = "allow"

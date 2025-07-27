@@ -1,26 +1,25 @@
 //! # GitHub Documentation Downloader
 //!
 //! A comprehensive library for discovering and downloading documentation files
-//! from GitHub repositories. This crate provides both API-based and git-based
-//! approaches to access repository contents, with automatic discovery of
+//! from GitHub repositories using git sparse checkout. This crate provides
+//! efficient git-based access to repository contents, with automatic discovery of
 //! documentation directories and intelligent file filtering.
 //!
 //! ## Features
 //!
-//! - **Multiple Access Methods**: Support for both GitHub API and git clone approaches
-//! - **Automatic Discovery**: Intelligent detection of documentation directories
-//! - **File Filtering**: Smart identification of documentation files by extension and name
+//! - **Git Sparse Checkout**: Efficient downloading using git sparse checkout for targeted paths
+//! - **Tree URL Support**: Direct support for GitHub tree URLs (e.g., github.com/owner/repo/tree/branch/path)
+//! - **Documentation Detection**: Smart identification of documentation files by extension and name
 //! - **Type Safety**: Comprehensive use of semantic types to prevent category errors
 //! - **Error Handling**: Detailed error types with actionable information
-//! - **Authentication**: Optional GitHub API token support for private repositories
+//! - **Performance**: Fast downloads without rate limiting concerns
 //!
 //! ## Quick Start
 //!
 //! ```rust,no_run
 //! use gh_docs_download::{
-//!     cli::{Args, CliApp},
 //!     downloader::{DownloadConfig, GitHubDocsDownloader},
-//!     types::{RepoOwner, RepoName, RepoSpec, GitHubToken},
+//!     types::{RepoOwner, RepoName, RepoSpec},
 //! };
 //!
 //! # #[tokio::main]
@@ -30,16 +29,16 @@
 //! let name = RepoName::new("rust")?;
 //! let repo = RepoSpec::new(owner, name);
 //!
-//! // Configure the downloader
+//! // Configure the downloader with target path
 //! let config = DownloadConfig {
 //!     output_dir: "docs".to_string(),
 //!     list_only: false,
 //!     recursive: true,
-//!     use_git: false,
+//!     target_path: "src/doc".to_string(), // Specific documentation path
 //! };
 //!
-//! // Create downloader (no authentication)
-//! let downloader = GitHubDocsDownloader::new(repo, None, config)?;
+//! // Create downloader (git-only, no authentication needed)
+//! let downloader = GitHubDocsDownloader::new(repo, config);
 //!
 //! // Discover documentation directories
 //! let docs_dirs = downloader.find_docs_directories().await?;
@@ -61,8 +60,7 @@
 //!
 //! - [`error`] - Comprehensive error types with semantic meaning
 //! - [`types`] - Domain types and newtypes for type safety
-//! - [`github`] - GitHub API client for repository operations
-//! - [`downloader`] - Core downloading logic and configuration
+//! - [`downloader`] - Git-based downloading logic and configuration
 //! - [`cli`] - Command-line interface and argument parsing
 //!
 //! ## Error Handling
@@ -76,11 +74,11 @@
 //!
 //! # async fn example() -> Result<(), GitHubDocsError> {
 //! match some_operation().await {
-//!     Err(GitHubDocsError::RateLimitExceeded) => {
-//!         println!("Rate limited! Consider using a GitHub token.");
+//!     Err(GitHubDocsError::GitOperationFailed { command, stderr }) => {
+//!         println!("Git command '{}' failed: {}", command, stderr);
 //!     }
 //!     Err(GitHubDocsError::RepositoryNotFound { owner, repo }) => {
-//!         println!("Repository {}/{} not found or private", owner, repo);
+//!         println!("Repository {}/{} not found or inaccessible", owner, repo);
 //!     }
 //!     Err(e) => {
 //!         println!("Operation failed: {}", e);
@@ -99,22 +97,15 @@
 pub mod cli;
 pub mod downloader;
 pub mod error;
-pub mod github;
 pub mod types;
 
 // Re-export the most commonly used types for convenience
 pub use error::{GitHubDocsError, Result};
 pub use types::{
     DocumentationFile, DocsDirectory, DownloadUrl, FileName, FilePath, FileSizeBytes,
-    GitHubFile, GitHubToken, RepoName, RepoOwner, RepoSpec,
+    RepoName, RepoOwner, RepoSpec,
 };
 
 /// Library version information.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// User agent string used for HTTP requests.
-pub const USER_AGENT: &str = concat!(
-    env!("CARGO_PKG_NAME"),
-    "/",
-    env!("CARGO_PKG_VERSION")
-);

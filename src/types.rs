@@ -293,38 +293,6 @@ impl From<u64> for FileSizeBytes {
     }
 }
 
-/// GitHub API token for authentication.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GitHubToken(String);
-
-impl GitHubToken {
-    /// Create a new GitHub token.
-    pub fn new(token: impl Into<String>) -> Self {
-        Self(token.into())
-    }
-    
-    /// Get the token as a string slice.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-    
-    /// Convert into the underlying string.
-    pub fn into_string(self) -> String {
-        self.0
-    }
-}
-
-impl fmt::Display for GitHubToken {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ghp_***")  // Mask the token for security
-    }
-}
-
-impl From<String> for GitHubToken {
-    fn from(token: String) -> Self {
-        Self(token)
-    }
-}
 
 /// Directory path for documentation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -363,22 +331,6 @@ impl AsRef<str> for DocsDirectory {
     fn as_ref(&self) -> &str {
         &self.0
     }
-}
-
-/// GitHub file information with semantic types.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GitHubFile {
-    /// Name of the file
-    pub name: FileName,
-    /// Path to the file within the repository
-    pub path: FilePath,
-    /// URL for downloading the file content (if available)
-    pub download_url: Option<DownloadUrl>,
-    /// Type of the file ("file" or "dir")
-    #[serde(rename = "type")]
-    pub file_type: String,
-    /// Size of the file in bytes
-    pub size: FileSizeBytes,
 }
 
 /// Documentation file with complete metadata.

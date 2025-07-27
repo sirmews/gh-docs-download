@@ -1,13 +1,13 @@
 # Claude Hook Advisor Configuration
 # Auto-updated by learning system
-# Last updated: 2025-07-26T06:31:09.219670+00:00
+# Last updated: 2025-07-27T00:54:58.411184+00:00
 # 
 # NOTE: The [learned] sections are managed automatically.
 # You can safely edit [commands] but avoid manually editing learned mappings.
 [commands]
-"cargo check" = "cargo clippy"
-"cargo test" = "cargo test -- --nocapture"
 "rm -rf" = "echo 'Use trash command for safety'"
+"cargo test" = "cargo test -- --nocapture"
+"cargo check" = "cargo clippy"
 rm = "trash"
 curl = "curl -L"
 
@@ -18,7 +18,7 @@ curl = "curl -L"
 [learned.context]
 
 [learning_meta]
-last_updated = "2025-07-25T12:51:28.123796Z"
+last_updated = "2025-07-27T00:07:57.738552Z"
 total_mappings_learned = 0
 session_mappings = 0
 user_corrections = 0
@@ -329,13 +329,379 @@ success = true
 executed_at = "2025-07-26T06:31:09.218924Z"
 session_id = "9971cfd3-bee6-4355-881d-f1a421435e66"
 
+[[execution_history.command_executions]]
+command = "git diff"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T06:34:53.831170Z"
+session_id = "9971cfd3-bee6-4355-881d-f1a421435e66"
+
+[[execution_history.command_executions]]
+command = "git status"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T06:34:53.872567Z"
+session_id = "9971cfd3-bee6-4355-881d-f1a421435e66"
+
+[[execution_history.command_executions]]
+command = """
+git commit -m "$(cat <<'EOF'
+Implement LLM-friendly Rust architecture with comprehensive refactoring
+
+This commit transforms the gh-docs-download project from a monolithic 545-line
+main.rs into a modular, LLM-optimized Rust codebase following established
+best practices for AI-assisted development.
+
+## Key Architectural Changes
+
+### Module Organization
+- Split monolithic main.rs into focused modules (<200 lines each):
+  - src/lib.rs: Public API and library documentation
+  - src/error.rs: Comprehensive error types with thiserror
+  - src/types.rs: Semantic newtypes for domain modeling
+  - src/github.rs: GitHub API client with clean interfaces
+  - src/downloader.rs: Core download logic and file handling
+  - src/cli.rs: Command-line interface with validation
+  - src/main.rs: Minimal binary entry point (7 lines)
+
+### Type Safety & Semantic Modeling
+- Replace primitive strings with semantic newtypes:
+  RepoOwner, RepoName, FileName, FilePath, DownloadUrl, FileSizeBytes,
+  GitHubToken, DocsDirectory
+- Add validation logic and proper error handling for all domain types
+- Implement Display, From, and other traits for ergonomic usage
+
+### Error Handling Excellence
+- Replace Box<dyn std::error::Error> with GitHubDocsError enum
+- Add specific error variants: ApiRequestFailed, RateLimitExceeded,
+  RepositoryNotFound, DownloadFailed, GitOperationFailed, InvalidRepoFormat
+- Implement error context and helper methods for error classification
+
+### Clean Async Patterns
+- Replace manual Box::pin async recursion with #[async_recursion]
+- Clean up lifetime management in recursive functions
+- Maintain functionality while improving readability
+
+### Comprehensive Documentation
+- Add extensive rustdoc comments with examples for all public APIs
+- Include field-level documentation for all public struct fields
+- Document all error variants and enum cases
+- Enable #![warn(missing_docs)] for documentation completeness
+- Create library-level documentation with quickstart examples
+
+### Development Infrastructure
+- Update Cargo.toml with thiserror, async-recursion dependencies
+- Add URL serde support for proper serialization
+- Configure clippy linting with practical restrictions
+- Enhance Makefile with test-unit, test-doc, docs, strict lint targets
+
+## Quality Assurance
+- All tests pass: 6 unit tests + 2 documentation tests
+- Clippy compliance: Code compiles with warnings-as-errors
+- Functional verification: Tool works correctly with real repositories
+- Backward compatibility: CLI interface unchanged for users
+
+## LLM-Friendly Benefits Achieved
+- Context Preservation: Focused modules with clear separation of concerns
+- Semantic Clarity: Types express domain concepts preventing category errors
+- Predictable Structure: Consistent patterns LLMs can recognize and replicate
+- Error Transparency: Explicit error types provide actionable information
+- Documentation-Driven: Comprehensive docs support AI code understanding
+
+This refactoring demonstrates best practices from the LLM-friendly Rust
+development guide and serves as a reference implementation for AI-optimized
+Rust project structure.
+EOF
+)""""
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T06:35:25.295509Z"
+session_id = "9971cfd3-bee6-4355-881d-f1a421435e66"
+
+[[execution_history.command_executions]]
+command = "git remote -v"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T06:35:30.739083Z"
+session_id = "9971cfd3-bee6-4355-881d-f1a421435e66"
+
+[[execution_history.command_executions]]
+command = "git status"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T06:35:35.938691Z"
+session_id = "9971cfd3-bee6-4355-881d-f1a421435e66"
+
+[[execution_history.command_executions]]
+command = "git status"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T06:36:41.865016Z"
+session_id = "9971cfd3-bee6-4355-881d-f1a421435e66"
+
+[[execution_history.command_executions]]
+command = "gh auth status"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T06:38:52.093887Z"
+session_id = "9971cfd3-bee6-4355-881d-f1a421435e66"
+
+[[execution_history.command_executions]]
+command = 'gh repo create gh-docs-download --public --description "A tool for downloading documentation files from GitHub repositories with LLM-friendly Rust architecture" --clone=false'
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T06:39:02.139665Z"
+session_id = "9971cfd3-bee6-4355-881d-f1a421435e66"
+
+[[execution_history.command_executions]]
+command = "git remote add origin https://github.com/sirmews/gh-docs-download.git"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T06:39:15.458753Z"
+session_id = "9971cfd3-bee6-4355-881d-f1a421435e66"
+
+[[execution_history.command_executions]]
+command = "git push -u origin main"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T06:39:27.754101Z"
+session_id = "9971cfd3-bee6-4355-881d-f1a421435e66"
+
+[[execution_history.command_executions]]
+command = "git status"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T06:44:09.351779Z"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = "cargo build"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T11:31:44.118538Z"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = "cargo build"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T11:41:35.362748Z"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = "cargo run -- --repo TanStack/router --path docs --list-only"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T11:41:44.637249Z"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = "cargo build"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T11:48:47.564503Z"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = 'cargo run -- --repo "https://github.com/TanStack/router/tree/main/docs" --list-only'
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T11:51:39.374174Z"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = "trash src/github.rs"
+was_suggested = true
+original_command = "rm src/github.rs"
+exit_code = 0
+success = true
+executed_at = "2025-07-26T11:56:09.540192Z"
+suggestion_source = "static"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = "cargo build"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T12:14:53.873731Z"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = 'cargo run -- --repo "https://github.com/TanStack/router/tree/main/docs" --list-only'
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T12:15:04.892295Z"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = 'cargo run -- --repo "https://github.com/TanStack/router/tree/main/docs/router/eslint" -o test-downloads'
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-26T12:16:54.760383Z"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = "cargo build"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:07:57.738530Z"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = 'cargo run -- --repo "https://github.com/TanStack/router/tree/main/docs/router/eslint" -o test-downloads'
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:08:27.280972Z"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = "trash test-downloads"
+was_suggested = true
+original_command = "rm test-downloads"
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:09:32.443371Z"
+suggestion_source = "static"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = 'cargo run -- --repo "https://github.com/TanStack/router/tree/main/docs/router/framework/react/guide" --list-only'
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:09:50.791552Z"
+session_id = "5031ef24-d20c-494c-84bf-d77ca2038946"
+
+[[execution_history.command_executions]]
+command = "cargo clippy"
+was_suggested = true
+original_command = "cargo check"
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:33:13.380433Z"
+suggestion_source = "static"
+session_id = "4bf78e7e-f78d-4e92-957e-9eb2e1a3646d"
+
+[[execution_history.command_executions]]
+command = "cargo clippy"
+was_suggested = true
+original_command = "cargo check"
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:39:28.484737Z"
+suggestion_source = "static"
+session_id = "4bf78e7e-f78d-4e92-957e-9eb2e1a3646d"
+
+[[execution_history.command_executions]]
+command = "cargo run -- --help"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:41:48.499970Z"
+session_id = "4bf78e7e-f78d-4e92-957e-9eb2e1a3646d"
+
+[[execution_history.command_executions]]
+command = 'cargo run -- --repo "https://github.com/TanStack/router/tree/main/docs/router/eslint" --list-only'
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:41:56.494127Z"
+session_id = "4bf78e7e-f78d-4e92-957e-9eb2e1a3646d"
+
+[[execution_history.command_executions]]
+command = 'cargo clippy 2>&1 | grep -E "(error|failed)" | head -10'
+was_suggested = true
+original_command = 'cargo check 2>&1 | grep -E "(error|failed)" | head -10'
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:42:01.793621Z"
+suggestion_source = "static"
+session_id = "4bf78e7e-f78d-4e92-957e-9eb2e1a3646d"
+
+[[execution_history.command_executions]]
+command = "git add -A"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:54:50.560038Z"
+session_id = "4bf78e7e-f78d-4e92-957e-9eb2e1a3646d"
+
+[[execution_history.command_executions]]
+command = "git status"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:54:51.262494Z"
+session_id = "4bf78e7e-f78d-4e92-957e-9eb2e1a3646d"
+
+[[execution_history.command_executions]]
+command = "git diff --cached --name-only"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:54:51.287150Z"
+session_id = "4bf78e7e-f78d-4e92-957e-9eb2e1a3646d"
+
+[[execution_history.command_executions]]
+command = "git add .claude-hook-advisor.toml"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:54:57.769417Z"
+session_id = "4bf78e7e-f78d-4e92-957e-9eb2e1a3646d"
+
+[[execution_history.command_executions]]
+command = "git status"
+was_suggested = false
+exit_code = 0
+success = true
+executed_at = "2025-07-27T00:54:58.411043Z"
+session_id = "4bf78e7e-f78d-4e92-957e-9eb2e1a3646d"
+
 [execution_history.suggestion_stats."cargo check→cargo clippy"]
+times_suggested = 0
+times_accepted = 4
+times_successful = 4
+times_rejected = 0
+effectiveness_score = 1.0
+last_updated = "2025-07-27T00:39:28.484740Z"
+
+[execution_history.suggestion_stats.'cargo check 2>&1 | grep -E "(error|failed)" | head -10→cargo clippy']
 times_suggested = 0
 times_accepted = 2
 times_successful = 2
 times_rejected = 0
 effectiveness_score = 1.0
-last_updated = "2025-07-26T00:53:53.669944Z"
+last_updated = "2025-07-27T00:42:01.793624Z"
+
+[execution_history.suggestion_stats."rm test-downloads→trash"]
+times_suggested = 0
+times_accepted = 2
+times_successful = 2
+times_rejected = 0
+effectiveness_score = 1.0
+last_updated = "2025-07-27T00:09:32.443376Z"
 
 [execution_history.suggestion_stats."export PATH=\"/Users/nav/.bun/bin:$PATH\" && gemini -p \"I just added a section on Clippy enforcement to my LLM-friendly Rust practices guide. The section shows how to configure strict clippy linting in Cargo.toml with 'all', 'pedantic', 'nursery', and 'cargo' set to 'warn', plus using 'cargo check -- -D warnings' in CI. \n\nThe benefits I listed for LLMs are:\n- Enforces idiomatic Rust patterns LLMs recognize\n- Catches anti-patterns that confuse code analysis  \n- Ensures consistent style across codebase\n- Prevents subtle bugs through static analysis\n\nWhat do you think of this addition? Is this the right level of clippy strictness, and are there other clippy-related practices that would be beneficial for LLM understanding?\"→cargo clippy"]
 times_suggested = 0
@@ -345,6 +711,14 @@ times_rejected = 0
 effectiveness_score = 1.0
 last_updated = "2025-07-25T13:17:12.236506Z"
 
+[execution_history.suggestion_stats."rm src/github.rs→trash"]
+times_suggested = 0
+times_accepted = 2
+times_successful = 2
+times_rejected = 0
+effectiveness_score = 1.0
+last_updated = "2025-07-26T11:56:09.540195Z"
+
 [execution_history.suggestion_stats."export PATH=\"/Users/nav/.bun/bin:$PATH\" && gemini -p \"I just added a section on Clippy enforcement to my LLM-friendly Rust practices guide:\n\n### Clippy Enforcement\n\n**❌ Avoid: Optional Linting**\n```toml\n# Cargo.toml - weak linting configuration\n[dependencies]\n# No clippy configuration\n```\n\n**✅ Prefer: Strict Clippy Enforcement**\n```toml\n# Cargo.toml\n[lints.clippy]\nall = \\\"warn\\\"\npedantic = \\\"warn\\\"\nnursery = \\\"warn\\\"\ncargo = \\\"warn\\\"\n\n# In CI and development\n# cargo check -- -D warnings\n```\n\n**Benefits for LLMs:**\n- Enforces idiomatic Rust patterns LLMs recognize\n- Catches anti-patterns that confuse code analysis\n- Ensures consistent style across codebase\n- Prevents subtle bugs through static analysis\n\nWhat do you think of this addition? Is the configuration appropriate, and are there other clippy-related practices that would be beneficial for LLM understanding?\"→cargo clippy"]
 times_suggested = 0
 times_accepted = 2
@@ -352,6 +726,60 @@ times_successful = 2
 times_rejected = 0
 effectiveness_score = 1.0
 last_updated = "2025-07-25T13:16:48.062750Z"
+
+[execution_history.mapping_correlations."rm src/github.rs"]
+original_pattern = "rm src/github.rs"
+replacement_command = "trash"
+success_rate = 1.0
+total_executions = 2
+successful_executions = 2
+confidence_adjustment = 0.0060000005178153515
+last_calculated = "2025-07-26T11:56:09.540196Z"
+
+[execution_history.mapping_correlations."cargo check"]
+original_pattern = "cargo check"
+replacement_command = "cargo clippy"
+success_rate = 1.0
+total_executions = 4
+successful_executions = 4
+confidence_adjustment = 0.012000001035630703
+last_calculated = "2025-07-27T00:39:28.484740Z"
+
+[execution_history.mapping_correlations."export PATH=\"/Users/nav/.bun/bin:$PATH\" && gemini -p \"I just added a section on Clippy enforcement to my LLM-friendly Rust practices guide. The section shows how to configure strict clippy linting in Cargo.toml with 'all', 'pedantic', 'nursery', and 'cargo' set to 'warn', plus using 'cargo check -- -D warnings' in CI. \n\nThe benefits I listed for LLMs are:\n- Enforces idiomatic Rust patterns LLMs recognize\n- Catches anti-patterns that confuse code analysis  \n- Ensures consistent style across codebase\n- Prevents subtle bugs through static analysis\n\nWhat do you think of this addition? Is this the right level of clippy strictness, and are there other clippy-related practices that would be beneficial for LLM understanding?\""]
+original_pattern = """
+export PATH="/Users/nav/.bun/bin:$PATH" && gemini -p "I just added a section on Clippy enforcement to my LLM-friendly Rust practices guide. The section shows how to configure strict clippy linting in Cargo.toml with 'all', 'pedantic', 'nursery', and 'cargo' set to 'warn', plus using 'cargo check -- -D warnings' in CI. 
+
+The benefits I listed for LLMs are:
+- Enforces idiomatic Rust patterns LLMs recognize
+- Catches anti-patterns that confuse code analysis  
+- Ensures consistent style across codebase
+- Prevents subtle bugs through static analysis
+
+What do you think of this addition? Is this the right level of clippy strictness, and are there other clippy-related practices that would be beneficial for LLM understanding?""""
+replacement_command = "cargo clippy"
+success_rate = 1.0
+total_executions = 2
+successful_executions = 2
+confidence_adjustment = 0.0060000005178153515
+last_calculated = "2025-07-25T13:17:12.236507Z"
+
+[execution_history.mapping_correlations."rm test-downloads"]
+original_pattern = "rm test-downloads"
+replacement_command = "trash"
+success_rate = 1.0
+total_executions = 2
+successful_executions = 2
+confidence_adjustment = 0.0060000005178153515
+last_calculated = "2025-07-27T00:09:32.443377Z"
+
+[execution_history.mapping_correlations.'cargo check 2>&1 | grep -E "(error|failed)" | head -10']
+original_pattern = 'cargo check 2>&1 | grep -E "(error|failed)" | head -10'
+replacement_command = "cargo clippy"
+success_rate = 1.0
+total_executions = 2
+successful_executions = 2
+confidence_adjustment = 0.0060000005178153515
+last_calculated = "2025-07-27T00:42:01.793625Z"
 
 [execution_history.mapping_correlations."export PATH=\"/Users/nav/.bun/bin:$PATH\" && gemini -p \"I just added a section on Clippy enforcement to my LLM-friendly Rust practices guide:\n\n### Clippy Enforcement\n\n**❌ Avoid: Optional Linting**\n```toml\n# Cargo.toml - weak linting configuration\n[dependencies]\n# No clippy configuration\n```\n\n**✅ Prefer: Strict Clippy Enforcement**\n```toml\n# Cargo.toml\n[lints.clippy]\nall = \\\"warn\\\"\npedantic = \\\"warn\\\"\nnursery = \\\"warn\\\"\ncargo = \\\"warn\\\"\n\n# In CI and development\n# cargo check -- -D warnings\n```\n\n**Benefits for LLMs:**\n- Enforces idiomatic Rust patterns LLMs recognize\n- Catches anti-patterns that confuse code analysis\n- Ensures consistent style across codebase\n- Prevents subtle bugs through static analysis\n\nWhat do you think of this addition? Is the configuration appropriate, and are there other clippy-related practices that would be beneficial for LLM understanding?\""]
 original_pattern = '''
@@ -392,30 +820,3 @@ total_executions = 2
 successful_executions = 2
 confidence_adjustment = 0.0060000005178153515
 last_calculated = "2025-07-25T13:16:48.062750Z"
-
-[execution_history.mapping_correlations."cargo check"]
-original_pattern = "cargo check"
-replacement_command = "cargo clippy"
-success_rate = 1.0
-total_executions = 2
-successful_executions = 2
-confidence_adjustment = 0.0060000005178153515
-last_calculated = "2025-07-26T00:53:53.669944Z"
-
-[execution_history.mapping_correlations."export PATH=\"/Users/nav/.bun/bin:$PATH\" && gemini -p \"I just added a section on Clippy enforcement to my LLM-friendly Rust practices guide. The section shows how to configure strict clippy linting in Cargo.toml with 'all', 'pedantic', 'nursery', and 'cargo' set to 'warn', plus using 'cargo check -- -D warnings' in CI. \n\nThe benefits I listed for LLMs are:\n- Enforces idiomatic Rust patterns LLMs recognize\n- Catches anti-patterns that confuse code analysis  \n- Ensures consistent style across codebase\n- Prevents subtle bugs through static analysis\n\nWhat do you think of this addition? Is this the right level of clippy strictness, and are there other clippy-related practices that would be beneficial for LLM understanding?\""]
-original_pattern = """
-export PATH="/Users/nav/.bun/bin:$PATH" && gemini -p "I just added a section on Clippy enforcement to my LLM-friendly Rust practices guide. The section shows how to configure strict clippy linting in Cargo.toml with 'all', 'pedantic', 'nursery', and 'cargo' set to 'warn', plus using 'cargo check -- -D warnings' in CI. 
-
-The benefits I listed for LLMs are:
-- Enforces idiomatic Rust patterns LLMs recognize
-- Catches anti-patterns that confuse code analysis  
-- Ensures consistent style across codebase
-- Prevents subtle bugs through static analysis
-
-What do you think of this addition? Is this the right level of clippy strictness, and are there other clippy-related practices that would be beneficial for LLM understanding?""""
-replacement_command = "cargo clippy"
-success_rate = 1.0
-total_executions = 2
-successful_executions = 2
-confidence_adjustment = 0.0060000005178153515
-last_calculated = "2025-07-25T13:17:12.236507Z"

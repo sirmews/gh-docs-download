@@ -3,7 +3,7 @@
 //! This module provides the CLI argument parsing and main application logic.
 
 use crate::error::{GitHubDocsError, Result};
-use crate::types::{GitHubToken, RepoName, RepoOwner, RepoSpec};
+use crate::types::{RepoName, RepoOwner, RepoSpec};
 use clap::Parser;
 use url::Url;
 
@@ -11,7 +11,7 @@ use url::Url;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
-    /// GitHub repository URL or slug (e.g., "owner/repo" or "<https://github.com/owner/repo>")
+    /// GitHub tree URL (e.g., "https://github.com/owner/repo/tree/branch/path")
     #[arg(short = 'r', long)]
     pub repo: String,
 
@@ -27,83 +27,58 @@ pub struct Args {
     #[arg(long, default_value = "true")]
     pub recursive: bool,
 
-    /// GitHub API token for authenticated requests
-    #[arg(long)]
-    pub token: Option<String>,
-
-    /// Force use of git clone instead of GitHub API
-    #[arg(long)]
-    pub use_git: bool,
 }
 
 impl Args {
-    /// Parse the repository input into a validated `RepoSpec`.
+    /// Parse GitHub tree URL into repository spec and documentation path.
     ///
-    /// # Panics
+    /// Expected format: `https://github.com/owner/repo/tree/branch/path`
     ///
-    /// This method may panic if string prefix operations fail unexpectedly.
+    /// # Returns
     ///
-    /// Supports various input formats:
-    /// - `owner/repo` format
-    /// - Full GitHub URLs: `https://github.com/owner/repo`
-    /// - SSH URLs: `git@github.com:owner/repo.git`
+    /// Returns `(RepoSpec, String)` where the second element is the documentation path.
     ///
     /// # Errors
     ///
-    /// Returns `GitHubDocsError::InvalidRepoFormat` if the input cannot be parsed.
-    pub fn parse_repo_spec(&self) -> Result<RepoSpec> {
-        // Handle full GitHub URLs
-        if self.repo.starts_with("http") {
-            let url = Url::parse(&self.repo)?;
-            let path_segments: Vec<&str> = url
-                .path_segments()
-                .ok_or_else(|| GitHubDocsError::InvalidRepoFormat {
-                    input: self.repo.clone(),
-                })?
-                .collect();
+    /// Returns `GitHubDocsError::InvalidRepoFormat` if the URL is not a valid GitHub tree URL.
+    pub fn parse_repo_spec(&self) -> Result<(RepoSpec, String)> {
+        let url = Url::parse(&self.repo)?;
+        
+        // Verify it's a GitHub URL
+        if url.host_str() != Some("github.com") {
+            return Err(GitHubDocsError::InvalidRepoFormat {
+                input: self.repo.clone(),
+            });
+        }
+        
+        let path_segments: Vec<&str> = url
+            .path_segments()
+            .ok_or_else(|| GitHubDocsError::InvalidRepoFormat {
+                input: self.repo.clone(),
+            })?
+            .collect();
 
-            if path_segments.len() >= 2 {
-                let owner = RepoOwner::new(path_segments[0])?;
-                let repo_name = path_segments[1].trim_end_matches(".git");
-                let name = RepoName::new(repo_name)?;
-                return Ok(RepoSpec::new(owner, name));
-            }
+        // Must be: /owner/repo/tree/branch/path...
+        if path_segments.len() < 5 || path_segments[2] != "tree" {
+            return Err(GitHubDocsError::InvalidRepoFormat {
+                input: format!("Expected GitHub tree URL format: https://github.com/owner/repo/tree/branch/path, got: {}", self.repo),
+            });
         }
 
-        // Handle SSH URLs (git@github.com:owner/repo.git)
-        if self.repo.starts_with("git@github.com:") {
-            let repo_part = self.repo.strip_prefix("git@github.com:").unwrap();
-            if let Some((owner, repo)) = repo_part.split_once('/') {
-                let owner = RepoOwner::new(owner)?;
-                let repo_name = repo.trim_end_matches(".git");
-                let name = RepoName::new(repo_name)?;
-                return Ok(RepoSpec::new(owner, name));
-            }
-        }
-
-        // Handle owner/repo format
-        if let Some((owner, repo)) = self.repo.split_once('/') {
-            let owner = RepoOwner::new(owner)?;
-            let repo_name = repo.trim_end_matches(".git");
-            let name = RepoName::new(repo_name)?;
-            return Ok(RepoSpec::new(owner, name));
-        }
-
-        Err(GitHubDocsError::InvalidRepoFormat {
-            input: self.repo.clone(),
-        })
-    }
-
-    /// Get the GitHub token if provided.
-    #[must_use]
-    pub fn github_token(&self) -> Option<GitHubToken> {
-        self.token.as_ref().map(|t| GitHubToken::new(t.clone()))
+        let owner = RepoOwner::new(path_segments[0])?;
+        let repo_name = RepoName::new(path_segments[1])?;
+        let repo_spec = RepoSpec::new(owner, repo_name);
+        
+        // Extract path after /tree/branch/
+        let doc_path = path_segments[4..].join("/");
+        
+        Ok((repo_spec, doc_path))
     }
 
     /// Validate the arguments and return any validation errors.
     pub fn validate(&self) -> Result<()> {
         // Validate repository format
-        self.parse_repo_spec()?;
+        let _ = self.parse_repo_spec()?;
 
         // Validate output directory path
         if self.output.is_empty() {
@@ -143,20 +118,19 @@ impl CliApp {
         // Validate arguments
         self.args.validate()?;
 
-        // Parse repository specification
-        let repo_spec = self.args.parse_repo_spec()?;
-        let token = self.args.github_token();
+        // Parse repository specification and extract path from tree URL
+        let (repo_spec, doc_path) = self.args.parse_repo_spec()?;
 
         // Create download configuration
         let config = crate::downloader::DownloadConfig {
             output_dir: self.args.output.clone(),
             list_only: self.args.list_only,
             recursive: self.args.recursive,
-            use_git: self.args.use_git,
+            target_path: doc_path,
         };
 
         // Create downloader
-        let downloader = crate::downloader::GitHubDocsDownloader::new(repo_spec.clone(), token, config)?;
+        let downloader = crate::downloader::GitHubDocsDownloader::new(repo_spec.clone(), config);
 
         println!(
             "Searching for documentation directories in {}...",
@@ -210,8 +184,6 @@ mod tests {
             output: "test".to_string(),
             list_only: false,
             recursive: true,
-            token: None,
-            use_git: false,
         };
 
         let repo_spec = args.parse_repo_spec().unwrap();
@@ -226,8 +198,6 @@ mod tests {
             output: "test".to_string(),
             list_only: false,
             recursive: true,
-            token: None,
-            use_git: false,
         };
 
         let repo_spec = args.parse_repo_spec().unwrap();
@@ -242,8 +212,6 @@ mod tests {
             output: "test".to_string(),
             list_only: false,
             recursive: true,
-            token: None,
-            use_git: false,
         };
 
         let repo_spec = args.parse_repo_spec().unwrap();
@@ -258,8 +226,6 @@ mod tests {
             output: "test".to_string(),
             list_only: false,
             recursive: true,
-            token: None,
-            use_git: false,
         };
 
         assert!(args.parse_repo_spec().is_err());
@@ -272,8 +238,6 @@ mod tests {
             output: "test".to_string(),
             list_only: false,
             recursive: true,
-            token: Some("ghp_test_token".to_string()),
-            use_git: false,
         };
 
         let token = args.github_token().unwrap();
@@ -287,8 +251,6 @@ mod tests {
             output: "test".to_string(),
             list_only: false,
             recursive: true,
-            token: None,
-            use_git: false,
         };
 
         assert!(args.github_token().is_none());
