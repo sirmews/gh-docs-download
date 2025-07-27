@@ -75,13 +75,19 @@ version:
 	@echo "Current version:"
 	@grep "^version" Cargo.toml
 
-# Publish to crates.io (requires confirmation)
+# Publish to crates.io (requires confirmation and clean git state)
 .PHONY: publish
 publish: publish-check
 	@echo "WARNING: This will publish to crates.io!"
 	@echo "Current version: $$(grep '^version' Cargo.toml | cut -d'"' -f2)"
+	@echo "Checking git status..."
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "ERROR: Working directory has uncommitted changes. Please commit first."; \
+		git status --short; \
+		exit 1; \
+	fi
 	@read -p "Are you sure you want to publish? (y/N): " confirm && [ "$$confirm" = "y" ]
-	cargo publish --allow-dirty
+	cargo publish
 
 # Show help
 .PHONY: help
