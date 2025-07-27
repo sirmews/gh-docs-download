@@ -22,8 +22,7 @@
 //!     types::{RepoOwner, RepoName, RepoSpec},
 //! };
 //!
-//! # #[tokio::main]
-//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create a repository specification
 //! let owner = RepoOwner::new("rust-lang")?;
 //! let name = RepoName::new("rust")?;
@@ -102,10 +101,9 @@ pub mod types;
 // Re-export the most commonly used types for convenience
 pub use error::{GitHubDocsError, Result};
 pub use types::{
-    DocumentationFile, DocsDirectory, DownloadUrl, FileName, FilePath, FileSizeBytes,
-    RepoName, RepoOwner, RepoSpec,
+    DocsDirectory, DocumentationFile, DownloadUrl, FileName, FilePath, FileSizeBytes, RepoName,
+    RepoOwner, RepoSpec,
 };
 
 /// Library version information.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-

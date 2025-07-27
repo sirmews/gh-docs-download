@@ -24,32 +24,34 @@ impl RepoOwner {
     /// Returns `RepoOwnerError` if the owner name is invalid.
     pub fn new(owner: impl AsRef<str>) -> Result<Self, RepoOwnerError> {
         let owner = owner.as_ref();
-        
+
         if owner.is_empty() {
             return Err(RepoOwnerError::Empty);
         }
-        
+
         if owner.len() > 39 {
             return Err(RepoOwnerError::TooLong { len: owner.len() });
         }
-        
+
         // GitHub username/organization validation
         if !owner.chars().all(|c| c.is_alphanumeric() || c == '-') {
             return Err(RepoOwnerError::InvalidCharacters {
                 owner: owner.to_string(),
             });
         }
-        
+
         Ok(Self(owner.to_string()))
     }
-    
+
     /// Get the owner name as a string slice.
-    #[must_use] pub fn as_str(&self) -> &str {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
         &self.0
     }
-    
+
     /// Convert into the underlying string.
-    #[must_use] pub fn into_string(self) -> String {
+    #[must_use]
+    pub fn into_string(self) -> String {
         self.0
     }
 }
@@ -81,32 +83,37 @@ impl RepoName {
     /// Returns `RepoNameError` if the repository name is invalid.
     pub fn new(name: impl AsRef<str>) -> Result<Self, RepoNameError> {
         let name = name.as_ref();
-        
+
         if name.is_empty() {
             return Err(RepoNameError::Empty);
         }
-        
+
         if name.len() > 100 {
             return Err(RepoNameError::TooLong { len: name.len() });
         }
-        
+
         // GitHub repository name validation (simplified)
-        if !name.chars().all(|c| c.is_alphanumeric() || "-_.".contains(c)) {
+        if !name
+            .chars()
+            .all(|c| c.is_alphanumeric() || "-_.".contains(c))
+        {
             return Err(RepoNameError::InvalidCharacters {
                 name: name.to_string(),
             });
         }
-        
+
         Ok(Self(name.to_string()))
     }
-    
+
     /// Get the repository name as a string slice.
-    #[must_use] pub fn as_str(&self) -> &str {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
         &self.0
     }
-    
+
     /// Convert into the underlying string.
-    #[must_use] pub fn into_string(self) -> String {
+    #[must_use]
+    pub fn into_string(self) -> String {
         self.0
     }
 }
@@ -132,14 +139,16 @@ impl FileName {
     pub fn new(name: impl Into<String>) -> Self {
         Self(name.into())
     }
-    
+
     /// Get the file name as a string slice.
-    #[must_use] pub fn as_str(&self) -> &str {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
         &self.0
     }
-    
+
     /// Convert into the underlying string.
-    #[must_use] pub fn into_string(self) -> String {
+    #[must_use]
+    pub fn into_string(self) -> String {
         self.0
     }
 }
@@ -165,19 +174,22 @@ impl FilePath {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self(path.into())
     }
-    
+
     /// Get the path as a `PathBuf` reference.
-    #[must_use] pub fn as_path(&self) -> &std::path::Path {
+    #[must_use]
+    pub fn as_path(&self) -> &std::path::Path {
         &self.0
     }
-    
+
     /// Convert into the underlying `PathBuf`.
-    #[must_use] pub fn into_path_buf(self) -> PathBuf {
+    #[must_use]
+    pub fn into_path_buf(self) -> PathBuf {
         self.0
     }
-    
+
     /// Get the path as a string, using lossy conversion if needed.
-    #[must_use] pub fn as_string_lossy(&self) -> std::borrow::Cow<str> {
+    #[must_use]
+    pub fn as_string_lossy(&self) -> std::borrow::Cow<str> {
         self.0.to_string_lossy()
     }
 }
@@ -206,10 +218,11 @@ pub struct DownloadUrl(Url);
 
 impl DownloadUrl {
     /// Create a new download URL from a validated URL.
-    #[must_use] pub fn new(url: Url) -> Self {
+    #[must_use]
+    pub fn new(url: Url) -> Self {
         Self(url)
     }
-    
+
     /// Parse a download URL from a string.
     ///
     /// # Errors
@@ -218,19 +231,22 @@ impl DownloadUrl {
     pub fn parse(url: impl AsRef<str>) -> Result<Self, url::ParseError> {
         Ok(Self(Url::parse(url.as_ref())?))
     }
-    
+
     /// Get the URL as a reference.
-    #[must_use] pub fn as_url(&self) -> &Url {
+    #[must_use]
+    pub fn as_url(&self) -> &Url {
         &self.0
     }
-    
+
     /// Convert into the underlying URL.
-    #[must_use] pub fn into_url(self) -> Url {
+    #[must_use]
+    pub fn into_url(self) -> Url {
         self.0
     }
-    
+
     /// Get the URL as a string.
-    #[must_use] pub fn as_str(&self) -> &str {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
 }
@@ -253,27 +269,30 @@ pub struct FileSizeBytes(u64);
 
 impl FileSizeBytes {
     /// Create a new file size.
-    #[must_use] pub fn new(bytes: u64) -> Self {
+    #[must_use]
+    pub fn new(bytes: u64) -> Self {
         Self(bytes)
     }
-    
+
     /// Get the size in bytes.
-    #[must_use] pub fn bytes(&self) -> u64 {
+    #[must_use]
+    pub fn bytes(&self) -> u64 {
         self.0
     }
-    
+
     /// Get the size as a human-readable string.
-    #[must_use] pub fn human_readable(&self) -> String {
+    #[must_use]
+    pub fn human_readable(&self) -> String {
         const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
         #[allow(clippy::cast_precision_loss)]
         let mut size = self.0 as f64;
         let mut unit_index = 0;
-        
+
         while size >= 1024.0 && unit_index < UNITS.len() - 1 {
             size /= 1024.0;
             unit_index += 1;
         }
-        
+
         if unit_index == 0 {
             format!("{} {}", self.0, UNITS[unit_index])
         } else {
@@ -294,7 +313,6 @@ impl From<u64> for FileSizeBytes {
     }
 }
 
-
 /// Directory path for documentation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DocsDirectory(String);
@@ -304,14 +322,16 @@ impl DocsDirectory {
     pub fn new(path: impl Into<String>) -> Self {
         Self(path.into())
     }
-    
+
     /// Get the directory path as a string slice.
-    #[must_use] pub fn as_str(&self) -> &str {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
         &self.0
     }
-    
+
     /// Convert into the underlying string.
-    #[must_use] pub fn into_string(self) -> String {
+    #[must_use]
+    pub fn into_string(self) -> String {
         self.0
     }
 }
@@ -360,12 +380,14 @@ pub struct RepoSpec {
 
 impl RepoSpec {
     /// Create a new repository specification.
-    #[must_use] pub fn new(owner: RepoOwner, name: RepoName) -> Self {
+    #[must_use]
+    pub fn new(owner: RepoOwner, name: RepoName) -> Self {
         Self { owner, name }
     }
-    
+
     /// Get the full repository identifier as "owner/repo".
-    #[must_use] pub fn full_name(&self) -> String {
+    #[must_use]
+    pub fn full_name(&self) -> String {
         format!("{}/{}", self.owner, self.name)
     }
 }

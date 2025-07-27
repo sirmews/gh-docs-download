@@ -6,8 +6,8 @@ This guide covers development setup, contribution guidelines, and technical deta
 
 ### Prerequisites
 - Rust 1.70+ (2021 edition)
-- Git
-- GitHub account (for testing)
+- Git command line tool
+- Access to public GitHub repositories (for testing)
 
 ### Initial Setup
 ```bash
@@ -51,7 +51,7 @@ make test-unit
 make test-doc
 
 # Test with real repositories using tree URLs
-./target/debug/gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs" --list-only
+./target/debug/gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs/router/eslint" --list-only
 ./target/debug/gh-docs-download --repo "https://github.com/rust-lang/rust/tree/main/src/doc" --list-only
 ```
 
@@ -60,8 +60,13 @@ make test-doc
 ```
 gh-docs-download/
 ├── src/
-│   └── main.rs              # Main application code
-├── docs/                    # Documentation
+│   ├── main.rs             # Main application entry point
+│   ├── lib.rs              # Library crate root
+│   ├── cli.rs              # CLI argument parsing and application runner
+│   ├── downloader.rs       # Git sparse checkout implementation
+│   ├── types.rs            # Semantic types and domain models
+│   └── error.rs            # Error handling types
+├── docs/                   # Documentation
 ├── Cargo.toml              # Project configuration
 ├── Cargo.lock              # Dependency lock file
 ├── Makefile                # Build automation
@@ -77,36 +82,31 @@ gh-docs-download/
 ```rust
 #[derive(Parser, Debug)]
 struct Args {
-    repo: String,           // Repository identifier
+    repo: String,           // GitHub tree URL
     output: String,         // Output directory
     list_only: bool,        // Preview mode
     recursive: bool,        // Recursive scanning
-    token: Option<String>,  // GitHub token
-    use_git: bool,          // Force git method
 }
 ```
 
-#### 2. GitHub API Client (`GitHubDocsDownloader`)
-- Handles authentication
-- Manages API requests
-- Implements fallback strategies
+#### 2. Git Sparse Checkout Downloader (`GitHubDocsDownloader`)
+- Performs efficient git sparse checkout operations
+- Manages temporary directories and file operations
+- Implements documentation file discovery
 
-#### 3. Data Structures
+#### 3. Semantic Types
 ```rust
-struct GitHubFile {         // GitHub API response
-    name: String,
-    path: String,
-    download_url: Option<String>,
-    file_type: String,
-    size: u64,
+struct RepoSpec {           // Repository specification
+    owner: RepoOwner,
+    name: RepoName,
 }
 
-struct DocumentationFile {  // Internal representation
-    name: String,
-    path: String,
-    download_url: String,
-    size: u64,
-    docs_directory: String,
+struct DocumentationFile {  // Documentation file metadata
+    name: FileName,
+    path: FilePath,
+    download_url: DownloadUrl,
+    size: FileSizeBytes,
+    docs_directory: DocsDirectory,
 }
 ```
 
@@ -142,37 +142,36 @@ struct Args {
 }
 ```
 
-2. Use in main function:
+2. Use in CLI application:
 ```rust
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = Args::parse();
-    
-    if args.new_option {
-        // Handle new option
+impl CliApp {
+    async fn run(&self) -> Result<(), GitHubDocsError> {
+        if self.args.new_option {
+            // Handle new option
+        }
+        // ... rest of function
     }
-    // ... rest of function
 }
 ```
 
-### 3. Adding New Discovery Methods
+### 3. Adding New Documentation Patterns
 
-To add support for new documentation directory patterns:
+To add support for new documentation file patterns, update the file detection logic:
 
 ```rust
-async fn find_docs_recursive(&self, path: &str, docs_dirs: &mut Vec<String>, visited: &mut HashSet<String>) {
-    // ... existing code
+fn is_documentation_file(filename: &str) -> bool {
+    let doc_extensions = [
+        ".md", ".markdown", ".txt", ".rst", 
+        ".adoc", ".asciidoc", ".org", ".tex", 
+        ".pdf", ".html", ".htm", ".xml",
+        ".new_extension",  // Add new extension here
+    ];
     
-    for file in files {
-        if file.file_type == "dir" {
-            let dir_name = file.name.to_lowercase();
-            // Add new patterns here
-            if dir_name.contains("doc") || 
-               dir_name.contains("manual") ||  // New pattern
-               dir_name.contains("guide") {    // New pattern
-                docs_dirs.push(file.path.clone());
-            }
-        }
-    }
+    let common_doc_names = [
+        "readme", "changelog", "license", "guide",
+        "tutorial", "manual",  // Add new patterns here
+    ];
+    // ... rest of function
 }
 ```
 
@@ -182,135 +181,182 @@ async fn find_docs_recursive(&self, path: &str, docs_dirs: &mut Vec<String>, vis
 
 #### Basic Functionality
 ```bash
-# Test repository parsing
-./target/debug/gh-docs-download --repo rust-lang/rust --list-only
-./target/debug/gh-docs-download --repo https://github.com/microsoft/vscode --list-only
+# Test tree URL parsing and git operations
+./target/debug/gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs/router/eslint" --list-only
+./target/debug/gh-docs-download --repo "https://github.com/rust-lang/rust/tree/main/src/doc" --list-only
 
-# Test authentication
-export GITHUB_TOKEN=your_token
-./target/debug/gh-docs-download --repo private/repo --list-only
+# Test different branches
+./target/debug/gh-docs-download --repo "https://github.com/microsoft/vscode/tree/main/docs" --list-only
 
-# Test git fallback
-./target/debug/gh-docs-download --repo rust-lang/rust --use-git --list-only
+# Test actual download
+./target/debug/gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs/router/eslint" --output test-docs
 ```
 
 #### Edge Cases
 ```bash
-# Invalid repository
-./target/debug/gh-docs-download --repo invalid/repo --list-only
+# Invalid tree URL format
+./target/debug/gh-docs-download --repo "invalid-url-format" --list-only
 
-# Repository with no docs
-./target/debug/gh-docs-download --repo user/empty-repo --list-only
+# Non-existent repository
+./target/debug/gh-docs-download --repo "https://github.com/nonexistent/repo/tree/main/docs" --list-only
 
-# Large repository
-./target/debug/gh-docs-download --repo kubernetes/kubernetes --use-git --list-only
+# Non-existent branch
+./target/debug/gh-docs-download --repo "https://github.com/rust-lang/rust/tree/nonexistent-branch/docs" --list-only
+
+# Non-existent path
+./target/debug/gh-docs-download --repo "https://github.com/rust-lang/rust/tree/main/nonexistent-path" --list-only
 ```
 
-### Adding Unit Tests
+### Unit Tests
 
-Currently, the project lacks unit tests. Here's how to add them:
+The project includes comprehensive unit tests covering core functionality:
 
-1. Create `src/lib.rs`:
-```rust
-pub mod downloader;
-pub mod cli;
-pub mod utils;
-```
-
-2. Move code to modules and add tests:
+#### Existing Tests
 ```rust
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_repo_input() {
-        assert_eq!(
-            GitHubDocsDownloader::parse_repo_input("owner/repo").unwrap(),
-            ("owner".to_string(), "repo".to_string())
-        );
+    fn test_parse_repo_spec_tree_url() {
+        let args = Args {
+            repo: "https://github.com/rust-lang/rust/tree/main/docs".to_string(),
+            output: "test".to_string(),
+            list_only: false,
+            recursive: true,
+        };
+        let (repo_spec, path) = args.parse_repo_spec().unwrap();
+        assert_eq!(repo_spec.owner.as_str(), "rust-lang");
+        assert_eq!(repo_spec.name.as_str(), "rust");
+        assert_eq!(path, "docs");
     }
 
     #[test]
-    fn test_is_documentation_file() {
-        assert!(GitHubDocsDownloader::is_documentation_file("README.md"));
-        assert!(GitHubDocsDownloader::is_documentation_file("docs.txt"));
-        assert!(!GitHubDocsDownloader::is_documentation_file("main.rs"));
+    fn test_parse_repo_spec_invalid_url() {
+        let args = Args {
+            repo: "invalid-url".to_string(),
+            output: "test".to_string(),
+            list_only: false,
+            recursive: true,
+        };
+        assert!(args.parse_repo_spec().is_err());
     }
 }
 ```
 
-3. Run tests:
+#### Running Tests
 ```bash
-cargo test
+# Run all tests including comprehensive clippy checks
+make check
+
+# Run unit tests only
+make test-unit
+
+# Run documentation tests
+make test-doc
 ```
 
 ## Performance Optimization
 
-### Current Bottlenecks
-1. Sequential API requests
-2. Sequential file downloads
-3. No caching mechanism
+### Current Performance Characteristics
+1. Efficient git sparse checkout minimizes network transfer
+2. Single operation downloads all targeted files
+3. Temporary directories are automatically cleaned up
 
 ### Potential Improvements
 
-#### 1. Parallel Downloads
-```rust
-use futures::future::join_all;
-
-async fn download_files_parallel(&self, files: &[DocumentationFile], output_dir: &str) {
-    let downloads = files.iter().map(|file| {
-        self.download_file(file, output_dir)
-    });
-    
-    let results = join_all(downloads).await;
-    // Handle results
-}
-```
-
-#### 2. Connection Pooling
-```rust
-let client = Client::builder()
-    .pool_max_idle_per_host(10)
-    .pool_idle_timeout(Duration::from_secs(30))
-    .build()?;
-```
-
-#### 3. Progress Tracking
+#### 1. Progress Tracking for Large Repositories
 ```rust
 use indicatif::{ProgressBar, ProgressStyle};
 
-let pb = ProgressBar::new(total_files as u64);
-pb.set_style(ProgressStyle::default_bar()
-    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
-    .progress_chars("#>-"));
+impl GitHubDocsDownloader {
+    fn download_with_progress(&self, files: &[DocumentationFile]) -> Result<(), GitHubDocsError> {
+        let pb = ProgressBar::new(files.len() as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
+            .progress_chars("#>-"));
+        
+        // Update progress during file discovery
+        for file in files {
+            pb.inc(1);
+            pb.set_message(format!("Processing {}", file.name.as_str()));
+        }
+        pb.finish();
+        Ok(())
+    }
+}
+```
+
+#### 2. Batch Operations for Multiple URLs
+```rust
+struct BatchDownloadConfig {
+    tree_urls: Vec<String>,
+    output_dir: String,
+    organize_by_repo: bool,
+}
+
+impl GitHubDocsDownloader {
+    fn download_batch(&self, config: BatchDownloadConfig) -> Result<(), GitHubDocsError> {
+        for url in config.tree_urls {
+            // Process each tree URL independently
+        }
+    }
+}
+```
+
+#### 3. Caching for Repeated Operations
+```rust
+use std::collections::HashMap;
+
+struct RepositoryCache {
+    file_listings: HashMap<String, Vec<DocumentationFile>>,
+    max_age: Duration,
+}
+
+impl RepositoryCache {
+    fn get_or_fetch(&mut self, tree_url: &str) -> Result<Vec<DocumentationFile>, GitHubDocsError> {
+        if let Some(cached) = self.file_listings.get(tree_url) {
+            return Ok(cached.clone());
+        }
+        
+        // Fetch and cache
+        let files = self.fetch_fresh(tree_url)?;
+        self.file_listings.insert(tree_url.to_string(), files.clone());
+        Ok(files)
+    }
+}
 ```
 
 ## Error Handling Best Practices
 
-### Current Pattern
-```rust
-fn operation() -> Result<T, Box<dyn std::error::Error>> {
-    // Implementation
-}
-```
+### Current Error Architecture
+The project uses comprehensive, semantic error types with `thiserror`:
 
-### Recommended Improvements
 ```rust
-use thiserror::Error;
-
 #[derive(Error, Debug)]
-pub enum DownloadError {
-    #[error("Repository not found: {repo}")]
-    RepoNotFound { repo: String },
+pub enum GitHubDocsError {
+    #[error("Invalid repository format: Expected GitHub tree URL format like 'https://github.com/owner/repo/tree/branch/path', got: {input}")]
+    InvalidRepoFormat { input: String },
     
-    #[error("API rate limit exceeded")]
-    RateLimitExceeded,
+    #[error("Git operation failed: {command}\nError: {stderr}")]
+    GitOperationFailed { command: String, stderr: Cow<'static, str> },
     
-    #[error("Network error: {0}")]
-    Network(#[from] reqwest::Error),
+    #[error("File system error: {0}")]
+    FileError(#[from] std::io::Error),
+    
+    #[error("Directory traversal error: {0}")]
+    WalkDirError(#[from] walkdir::Error),
+    
+    #[error("URL parsing error: {0}")]
+    UrlParseError(#[from] url::ParseError),
 }
 ```
+
+### Error Handling Best Practices
+- Use semantic error types that provide clear context
+- Include the failing input in error messages for debugging
+- Chain errors using `#[from]` for automatic conversion
+- Provide user-friendly error messages that suggest solutions
 
 ## Contributing Guidelines
 
@@ -323,10 +369,10 @@ pub enum DownloadError {
 ### Commit Messages
 ```
 feat: add support for new file types
-fix: handle rate limiting gracefully
+fix: handle git sparse checkout edge cases
 docs: update API documentation
 refactor: extract file detection logic
-test: add unit tests for parser
+test: add unit tests for tree URL parser
 ```
 
 ### Pull Request Process
@@ -345,16 +391,19 @@ test: add unit tests for parser
 
 ### Enable Debug Logging
 ```bash
-RUST_LOG=debug ./target/debug/gh-docs-download --repo owner/repo
+RUST_LOG=debug ./target/debug/gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs"
 ```
 
 ### Common Debug Scenarios
 ```bash
-# Debug API requests
-RUST_LOG=reqwest=debug ./target/debug/gh-docs-download --repo owner/repo
+# Debug git operations
+RUST_LOG=gh_docs_download=debug ./target/debug/gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs"
+
+# Debug with verbose git output
+GIT_TRACE=1 ./target/debug/gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs"
 
 # Debug file operations
-RUST_LOG=gh_docs_download=debug ./target/debug/gh-docs-download --repo owner/repo
+RUST_LOG=gh_docs_download::downloader=debug ./target/debug/gh-docs-download --repo "https://github.com/owner/repo/tree/main/docs"
 ```
 
 ## Release Process

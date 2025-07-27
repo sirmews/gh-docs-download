@@ -26,7 +26,6 @@ pub struct Args {
     /// Include subdirectories recursively
     #[arg(long, default_value = "true")]
     pub recursive: bool,
-
 }
 
 impl Args {
@@ -43,14 +42,14 @@ impl Args {
     /// Returns `GitHubDocsError::InvalidRepoFormat` if the URL is not a valid GitHub tree URL.
     pub fn parse_repo_spec(&self) -> Result<(RepoSpec, String)> {
         let url = Url::parse(&self.repo)?;
-        
+
         // Verify it's a GitHub URL
         if url.host_str() != Some("github.com") {
             return Err(GitHubDocsError::InvalidRepoFormat {
                 input: self.repo.clone(),
             });
         }
-        
+
         let path_segments: Vec<&str> = url
             .path_segments()
             .ok_or_else(|| GitHubDocsError::InvalidRepoFormat {
@@ -68,10 +67,10 @@ impl Args {
         let owner = RepoOwner::new(path_segments[0])?;
         let repo_name = RepoName::new(path_segments[1])?;
         let repo_spec = RepoSpec::new(owner, repo_name);
-        
+
         // Extract path after /tree/branch/
         let doc_path = path_segments[4..].join("/");
-        
+
         Ok((repo_spec, doc_path))
     }
 
@@ -102,7 +101,8 @@ pub struct CliApp {
 
 impl CliApp {
     /// Create a new CLI application with the given arguments.
-    #[must_use] pub fn new(args: Args) -> Self {
+    #[must_use]
+    pub fn new(args: Args) -> Self {
         Self { args }
     }
 
@@ -118,8 +118,7 @@ impl CliApp {
     /// # Errors
     ///
     /// Returns `GitHubDocsError` if any step of the process fails.
-    #[allow(clippy::unused_async)]
-    pub async fn run(&self) -> Result<()> {
+    pub fn run(&self) -> Result<()> {
         // Validate arguments
         self.args.validate()?;
 

@@ -14,10 +14,10 @@ build:
 release:
 	cargo build --release
 
-# Run the tool with example repository
+# Run the tool with example repository using tree URL
 .PHONY: test
 test: build
-	./target/debug/gh-docs-download --repo rust-lang/rust --list-only
+	./target/debug/gh-docs-download --repo "https://github.com/TanStack/router/tree/main/docs/router/eslint" --list-only
 
 # Clean build artifacts
 .PHONY: clean
@@ -29,10 +29,10 @@ clean:
 install:
 	cargo install --path .
 
-# Run clippy for linting with strict warnings
+# Run clippy for linting with comprehensive coverage and strict warnings
 .PHONY: lint
 lint:
-	cargo clippy -- -D warnings
+	cargo clippy --all-targets --all-features -- -D warnings
 
 # Format code
 .PHONY: format
@@ -63,6 +63,26 @@ docs:
 .PHONY: check
 check: check-format lint build test-unit test-doc
 
+# Check if ready for publishing (dry run)
+.PHONY: publish-check
+publish-check: check
+	@echo "Running publish dry-run to check for issues..."
+	cargo publish --dry-run --allow-dirty
+
+# Show current version
+.PHONY: version
+version:
+	@echo "Current version:"
+	@grep "^version" Cargo.toml
+
+# Publish to crates.io (requires confirmation)
+.PHONY: publish
+publish: publish-check
+	@echo "WARNING: This will publish to crates.io!"
+	@echo "Current version: $$(grep '^version' Cargo.toml | cut -d'"' -f2)"
+	@read -p "Are you sure you want to publish? (y/N): " confirm && [ "$$confirm" = "y" ]
+	cargo publish --allow-dirty
+
 # Show help
 .PHONY: help
 help:
@@ -79,4 +99,7 @@ help:
 	@echo "  test-doc     - Run documentation tests"
 	@echo "  docs         - Generate and open documentation"
 	@echo "  check        - Run all checks (format, lint, build, tests)"
+	@echo "  publish-check- Check if ready for publishing (dry run)"
+	@echo "  version      - Show current version"
+	@echo "  publish      - Publish to crates.io (with confirmation)"
 	@echo "  help         - Show this help message"

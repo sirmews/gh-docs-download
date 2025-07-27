@@ -4,7 +4,7 @@
 //! to access repository contents locally.
 
 use crate::error::{GitHubDocsError, Result};
-use crate::types::{DocumentationFile, DocsDirectory, FilePath, RepoSpec};
+use crate::types::{DocsDirectory, DocumentationFile, FilePath, RepoSpec};
 use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
@@ -37,7 +37,7 @@ impl Default for DownloadConfig {
 /// Documentation downloader using git clone approach.
 ///
 /// This downloader fetches documentation files by cloning the repository with git.
-/// It automatically discovers documentation directories and filters files based on 
+/// It automatically discovers documentation directories and filters files based on
 /// common documentation patterns.
 pub struct GitHubDocsDownloader {
     repo: RepoSpec,
@@ -51,14 +51,9 @@ impl GitHubDocsDownloader {
     ///
     /// * `repo` - Repository specification (owner/name)
     /// * `config` - Download configuration
-    #[must_use] pub fn new(
-        repo: RepoSpec,
-        config: DownloadConfig,
-    ) -> Self {
-        Self {
-            repo,
-            config,
-        }
+    #[must_use]
+    pub fn new(repo: RepoSpec, config: DownloadConfig) -> Self {
+        Self { repo, config }
     }
 
     /// Discover all documentation directories in the repository.
@@ -72,7 +67,10 @@ impl GitHubDocsDownloader {
 
     /// Find documentation directories using git clone approach.
     fn find_docs_directories_git(&self) -> Vec<DocsDirectory> {
-        println!("Using sparse checkout for path: {}", self.config.target_path);
+        println!(
+            "Using sparse checkout for path: {}",
+            self.config.target_path
+        );
         // Return the target path directly since we always have one from the tree URL
         vec![DocsDirectory::new(self.config.target_path.clone())]
     }
@@ -94,7 +92,7 @@ impl GitHubDocsDownloader {
 
         for docs_dir in docs_dirs {
             println!("Scanning {docs_dir}...");
-            
+
             let files = self.get_documentation_files_git(docs_dir)?;
 
             println!("Found {} documentation files in {}", files.len(), docs_dir);
@@ -187,7 +185,10 @@ impl GitHubDocsDownloader {
             let file_name = entry.file_name().to_string_lossy();
             if Self::is_documentation_file(&file_name) {
                 let relative_path = entry.path().strip_prefix(&repo_path)?;
-                let file_size = entry.metadata().map_err(GitHubDocsError::WalkDirError)?.len();
+                let file_size = entry
+                    .metadata()
+                    .map_err(GitHubDocsError::WalkDirError)?
+                    .len();
 
                 // Copy file immediately while temp directory exists
                 if !self.config.list_only {
@@ -229,8 +230,12 @@ impl GitHubDocsDownloader {
 
         // Files are already downloaded during get_documentation_files_git
         println!("\nDownload complete!");
-        println!("  Downloaded {} files to {}", files.len(), self.config.output_dir);
-        
+        println!(
+            "  Downloaded {} files to {}",
+            files.len(),
+            self.config.output_dir
+        );
+
         Self::print_file_summary(files);
         Ok(())
     }
@@ -238,14 +243,16 @@ impl GitHubDocsDownloader {
     /// Print a summary of discovered files.
     fn print_file_summary(files: &[DocumentationFile]) {
         println!("\nTotal documentation files found: {}", files.len());
-        
+
         let total_size: u64 = files.iter().map(|f| f.size.bytes()).sum();
         println!("Total size: {total_size} bytes");
 
         // Group files by directory
         let mut dirs_summary = std::collections::HashMap::new();
         for file in files {
-            let entry = dirs_summary.entry(file.docs_directory.as_str()).or_insert((0, 0u64));
+            let entry = dirs_summary
+                .entry(file.docs_directory.as_str())
+                .or_insert((0, 0u64));
             entry.0 += 1;
             entry.1 += file.size.bytes();
         }
@@ -262,32 +269,64 @@ impl GitHubDocsDownloader {
 
         // Check file extensions
         let doc_extensions = [
-            ".md", ".mdx", ".markdown", ".txt", ".rst", ".adoc", ".asciidoc",
-            ".org", ".tex", ".pdf", ".html", ".htm", ".xml",
+            ".md",
+            ".mdx",
+            ".markdown",
+            ".txt",
+            ".rst",
+            ".adoc",
+            ".asciidoc",
+            ".org",
+            ".tex",
+            ".pdf",
+            ".html",
+            ".htm",
+            ".xml",
         ];
 
-        if doc_extensions.iter().any(|ext| filename_lower.ends_with(ext)) {
+        if doc_extensions
+            .iter()
+            .any(|ext| filename_lower.ends_with(ext))
+        {
             return true;
         }
 
         // Check common documentation filenames
         let doc_names = [
-            "readme", "changelog", "changes", "news", "history",
-            "license", "copying", "authors", "contributors", "todo",
-            "install", "installation", "usage", "guide", "tutorial",
-            "faq", "api", "reference", "manual", "docs", "documentation",
+            "readme",
+            "changelog",
+            "changes",
+            "news",
+            "history",
+            "license",
+            "copying",
+            "authors",
+            "contributors",
+            "todo",
+            "install",
+            "installation",
+            "usage",
+            "guide",
+            "tutorial",
+            "faq",
+            "api",
+            "reference",
+            "manual",
+            "docs",
+            "documentation",
         ];
 
         doc_names.iter().any(|name| {
-            filename_lower == *name ||
-            filename_lower.starts_with(&format!("{name}.")) ||
-            filename_lower.starts_with(&format!("{name}_")) ||
-            filename_lower.starts_with(&format!("{name}-"))
+            filename_lower == *name
+                || filename_lower.starts_with(&format!("{name}."))
+                || filename_lower.starts_with(&format!("{name}_"))
+                || filename_lower.starts_with(&format!("{name}-"))
         })
     }
 
     /// Get the repository specification.
-    #[must_use] pub fn repo(&self) -> &RepoSpec {
+    #[must_use]
+    pub fn repo(&self) -> &RepoSpec {
         &self.repo
     }
 }
