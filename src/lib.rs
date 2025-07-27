@@ -41,15 +41,15 @@
 //! let downloader = GitHubDocsDownloader::new(repo, config);
 //!
 //! // Discover documentation directories
-//! let docs_dirs = downloader.find_docs_directories().await?;
+//! let docs_dirs = downloader.find_docs_directories()?;
 //! println!("Found {} documentation directories", docs_dirs.len());
 //!
 //! // Get all documentation files
-//! let files = downloader.get_all_documentation_files(&docs_dirs).await?;
+//! let files = downloader.get_all_documentation_files(&docs_dirs)?;
 //! println!("Found {} documentation files", files.len());
 //!
 //! // Download the files
-//! downloader.download_files(&files).await?;
+//! downloader.download_files(&files)?;
 //! # Ok(())
 //! # }
 //! ```

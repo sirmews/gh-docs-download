@@ -44,12 +44,12 @@ impl RepoOwner {
     }
     
     /// Get the owner name as a string slice.
-    pub fn as_str(&self) -> &str {
+    #[must_use] pub fn as_str(&self) -> &str {
         &self.0
     }
     
     /// Convert into the underlying string.
-    pub fn into_string(self) -> String {
+    #[must_use] pub fn into_string(self) -> String {
         self.0
     }
 }
@@ -101,12 +101,12 @@ impl RepoName {
     }
     
     /// Get the repository name as a string slice.
-    pub fn as_str(&self) -> &str {
+    #[must_use] pub fn as_str(&self) -> &str {
         &self.0
     }
     
     /// Convert into the underlying string.
-    pub fn into_string(self) -> String {
+    #[must_use] pub fn into_string(self) -> String {
         self.0
     }
 }
@@ -134,12 +134,12 @@ impl FileName {
     }
     
     /// Get the file name as a string slice.
-    pub fn as_str(&self) -> &str {
+    #[must_use] pub fn as_str(&self) -> &str {
         &self.0
     }
     
     /// Convert into the underlying string.
-    pub fn into_string(self) -> String {
+    #[must_use] pub fn into_string(self) -> String {
         self.0
     }
 }
@@ -167,17 +167,17 @@ impl FilePath {
     }
     
     /// Get the path as a `PathBuf` reference.
-    pub fn as_path(&self) -> &std::path::Path {
+    #[must_use] pub fn as_path(&self) -> &std::path::Path {
         &self.0
     }
     
     /// Convert into the underlying `PathBuf`.
-    pub fn into_path_buf(self) -> PathBuf {
+    #[must_use] pub fn into_path_buf(self) -> PathBuf {
         self.0
     }
     
     /// Get the path as a string, using lossy conversion if needed.
-    pub fn as_string_lossy(&self) -> std::borrow::Cow<str> {
+    #[must_use] pub fn as_string_lossy(&self) -> std::borrow::Cow<str> {
         self.0.to_string_lossy()
     }
 }
@@ -206,7 +206,7 @@ pub struct DownloadUrl(Url);
 
 impl DownloadUrl {
     /// Create a new download URL from a validated URL.
-    pub fn new(url: Url) -> Self {
+    #[must_use] pub fn new(url: Url) -> Self {
         Self(url)
     }
     
@@ -220,17 +220,17 @@ impl DownloadUrl {
     }
     
     /// Get the URL as a reference.
-    pub fn as_url(&self) -> &Url {
+    #[must_use] pub fn as_url(&self) -> &Url {
         &self.0
     }
     
     /// Convert into the underlying URL.
-    pub fn into_url(self) -> Url {
+    #[must_use] pub fn into_url(self) -> Url {
         self.0
     }
     
     /// Get the URL as a string.
-    pub fn as_str(&self) -> &str {
+    #[must_use] pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
 }
@@ -253,18 +253,19 @@ pub struct FileSizeBytes(u64);
 
 impl FileSizeBytes {
     /// Create a new file size.
-    pub fn new(bytes: u64) -> Self {
+    #[must_use] pub fn new(bytes: u64) -> Self {
         Self(bytes)
     }
     
     /// Get the size in bytes.
-    pub fn bytes(&self) -> u64 {
+    #[must_use] pub fn bytes(&self) -> u64 {
         self.0
     }
     
     /// Get the size as a human-readable string.
-    pub fn human_readable(&self) -> String {
+    #[must_use] pub fn human_readable(&self) -> String {
         const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
+        #[allow(clippy::cast_precision_loss)]
         let mut size = self.0 as f64;
         let mut unit_index = 0;
         
@@ -305,12 +306,12 @@ impl DocsDirectory {
     }
     
     /// Get the directory path as a string slice.
-    pub fn as_str(&self) -> &str {
+    #[must_use] pub fn as_str(&self) -> &str {
         &self.0
     }
     
     /// Convert into the underlying string.
-    pub fn into_string(self) -> String {
+    #[must_use] pub fn into_string(self) -> String {
         self.0
     }
 }
@@ -359,12 +360,12 @@ pub struct RepoSpec {
 
 impl RepoSpec {
     /// Create a new repository specification.
-    pub fn new(owner: RepoOwner, name: RepoName) -> Self {
+    #[must_use] pub fn new(owner: RepoOwner, name: RepoName) -> Self {
         Self { owner, name }
     }
     
     /// Get the full repository identifier as "owner/repo".
-    pub fn full_name(&self) -> String {
+    #[must_use] pub fn full_name(&self) -> String {
         format!("{}/{}", self.owner, self.name)
     }
 }

@@ -11,7 +11,7 @@ use url::Url;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
-    /// GitHub tree URL (e.g., "https://github.com/owner/repo/tree/branch/path")
+    /// GitHub tree URL (e.g., "<https://github.com/owner/repo/tree/branch/path>")
     #[arg(short = 'r', long)]
     pub repo: String,
 
@@ -76,6 +76,10 @@ impl Args {
     }
 
     /// Validate the arguments and return any validation errors.
+    ///
+    /// # Errors
+    ///
+    /// Returns `GitHubDocsError::InvalidRepoFormat` if the repository URL format is invalid.
     pub fn validate(&self) -> Result<()> {
         // Validate repository format
         let _ = self.parse_repo_spec()?;
@@ -98,7 +102,7 @@ pub struct CliApp {
 
 impl CliApp {
     /// Create a new CLI application with the given arguments.
-    pub fn new(args: Args) -> Self {
+    #[must_use] pub fn new(args: Args) -> Self {
         Self { args }
     }
 
@@ -114,6 +118,7 @@ impl CliApp {
     /// # Errors
     ///
     /// Returns `GitHubDocsError` if any step of the process fails.
+    #[allow(clippy::unused_async)]
     pub async fn run(&self) -> Result<()> {
         // Validate arguments
         self.args.validate()?;
@@ -138,7 +143,7 @@ impl CliApp {
         );
 
         // Discover documentation directories
-        let docs_dirs = downloader.find_docs_directories().await?;
+        let docs_dirs = downloader.find_docs_directories()?;
 
         if docs_dirs.is_empty() {
             return Err(GitHubDocsError::no_documentation_found(
@@ -149,11 +154,11 @@ impl CliApp {
 
         println!("Found {} documentation directories:", docs_dirs.len());
         for dir in &docs_dirs {
-            println!("  - {}", dir);
+            println!("  - {dir}");
         }
 
         // Collect all documentation files
-        let all_doc_files = downloader.get_all_documentation_files(&docs_dirs).await?;
+        let all_doc_files = downloader.get_all_documentation_files(&docs_dirs)?;
 
         if all_doc_files.is_empty() {
             println!("No documentation files found in the discovered directories.");
@@ -161,7 +166,7 @@ impl CliApp {
         }
 
         // Download or list files
-        downloader.download_files(&all_doc_files).await?;
+        downloader.download_files(&all_doc_files)?;
 
         Ok(())
     }
@@ -178,45 +183,57 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_repo_spec_owner_slash_repo() {
+    fn test_parse_repo_spec_tree_url() {
         let args = Args {
-            repo: "rust-lang/rust".to_string(),
+            repo: "https://github.com/rust-lang/rust/tree/main/docs".to_string(),
             output: "test".to_string(),
             list_only: false,
             recursive: true,
         };
 
-        let repo_spec = args.parse_repo_spec().unwrap();
+        let (repo_spec, path) = args.parse_repo_spec().unwrap();
         assert_eq!(repo_spec.owner.as_str(), "rust-lang");
         assert_eq!(repo_spec.name.as_str(), "rust");
+        assert_eq!(path, "docs");
     }
 
     #[test]
-    fn test_parse_repo_spec_https_url() {
+    fn test_parse_repo_spec_tree_url_nested_path() {
         let args = Args {
-            repo: "https://github.com/rust-lang/rust".to_string(),
+            repo: "https://github.com/TanStack/router/tree/main/docs/router/eslint".to_string(),
             output: "test".to_string(),
             list_only: false,
             recursive: true,
         };
 
-        let repo_spec = args.parse_repo_spec().unwrap();
-        assert_eq!(repo_spec.owner.as_str(), "rust-lang");
-        assert_eq!(repo_spec.name.as_str(), "rust");
+        let (repo_spec, path) = args.parse_repo_spec().unwrap();
+        assert_eq!(repo_spec.owner.as_str(), "TanStack");
+        assert_eq!(repo_spec.name.as_str(), "router");
+        assert_eq!(path, "docs/router/eslint");
     }
 
     #[test]
-    fn test_parse_repo_spec_ssh_url() {
+    fn test_parse_repo_spec_invalid_url() {
         let args = Args {
-            repo: "git@github.com:rust-lang/rust.git".to_string(),
+            repo: "https://notgithub.com/owner/repo/tree/main/docs".to_string(),
             output: "test".to_string(),
             list_only: false,
             recursive: true,
         };
 
-        let repo_spec = args.parse_repo_spec().unwrap();
-        assert_eq!(repo_spec.owner.as_str(), "rust-lang");
-        assert_eq!(repo_spec.name.as_str(), "rust");
+        assert!(args.parse_repo_spec().is_err());
+    }
+
+    #[test]
+    fn test_parse_repo_spec_missing_tree_structure() {
+        let args = Args {
+            repo: "https://github.com/owner/repo".to_string(),
+            output: "test".to_string(),
+            list_only: false,
+            recursive: true,
+        };
+
+        assert!(args.parse_repo_spec().is_err());
     }
 
     #[test]
@@ -229,30 +246,5 @@ mod tests {
         };
 
         assert!(args.parse_repo_spec().is_err());
-    }
-
-    #[test]
-    fn test_github_token() {
-        let args = Args {
-            repo: "owner/repo".to_string(),
-            output: "test".to_string(),
-            list_only: false,
-            recursive: true,
-        };
-
-        let token = args.github_token().unwrap();
-        assert_eq!(token.as_str(), "ghp_test_token");
-    }
-
-    #[test]
-    fn test_github_token_none() {
-        let args = Args {
-            repo: "owner/repo".to_string(),
-            output: "test".to_string(),
-            list_only: false,
-            recursive: true,
-        };
-
-        assert!(args.github_token().is_none());
     }
 }

@@ -51,7 +51,7 @@ impl GitHubDocsDownloader {
     ///
     /// * `repo` - Repository specification (owner/name)
     /// * `config` - Download configuration
-    pub fn new(
+    #[must_use] pub fn new(
         repo: RepoSpec,
         config: DownloadConfig,
     ) -> Self {
@@ -66,15 +66,15 @@ impl GitHubDocsDownloader {
     /// # Errors
     ///
     /// Returns `GitHubDocsError` if directory discovery fails.
-    pub async fn find_docs_directories(&self) -> Result<Vec<DocsDirectory>> {
-        self.find_docs_directories_git().await
+    pub fn find_docs_directories(&self) -> Result<Vec<DocsDirectory>> {
+        Ok(self.find_docs_directories_git())
     }
 
     /// Find documentation directories using git clone approach.
-    async fn find_docs_directories_git(&self) -> Result<Vec<DocsDirectory>> {
+    fn find_docs_directories_git(&self) -> Vec<DocsDirectory> {
         println!("Using sparse checkout for path: {}", self.config.target_path);
         // Return the target path directly since we always have one from the tree URL
-        Ok(vec![DocsDirectory::new(self.config.target_path.clone())])
+        vec![DocsDirectory::new(self.config.target_path.clone())]
     }
 
     /// Get all documentation files from the specified directories.
@@ -86,16 +86,16 @@ impl GitHubDocsDownloader {
     /// # Errors
     ///
     /// Returns `GitHubDocsError` if file discovery fails.
-    pub async fn get_all_documentation_files(
+    pub fn get_all_documentation_files(
         &self,
         docs_dirs: &[DocsDirectory],
     ) -> Result<Vec<DocumentationFile>> {
         let mut all_files = Vec::new();
 
         for docs_dir in docs_dirs {
-            println!("Scanning {}...", docs_dir);
+            println!("Scanning {docs_dir}...");
             
-            let files = self.get_documentation_files_git(docs_dir).await?;
+            let files = self.get_documentation_files_git(docs_dir)?;
 
             println!("Found {} documentation files in {}", files.len(), docs_dir);
             for file in &files {
@@ -109,7 +109,7 @@ impl GitHubDocsDownloader {
     }
 
     /// Get documentation files from a directory using git clone approach.
-    async fn get_documentation_files_git(
+    fn get_documentation_files_git(
         &self,
         docs_dir: &DocsDirectory,
     ) -> Result<Vec<DocumentationFile>> {
@@ -126,21 +126,21 @@ impl GitHubDocsDownloader {
         // Use sparse checkout for the specific documentation path
         // Clone with no checkout
         let output = Command::new("git")
-            .args(&["clone", "--no-checkout", "--depth", "1", &clone_url])
+            .args(["clone", "--no-checkout", "--depth", "1", &clone_url])
             .current_dir(temp_dir.path())
             .output()?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(GitHubDocsError::git_operation_failed(
-                format!("git clone --no-checkout {}", clone_url),
+                format!("git clone --no-checkout {clone_url}"),
                 stderr,
             ));
         }
 
         // Enable sparse checkout
         let output = Command::new("git")
-            .args(&["config", "core.sparseCheckout", "true"])
+            .args(["config", "core.sparseCheckout", "true"])
             .current_dir(&repo_path)
             .output()?;
 
@@ -160,7 +160,7 @@ impl GitHubDocsDownloader {
 
         // Checkout the specified paths
         let output = Command::new("git")
-            .args(&["checkout"])
+            .args(["checkout"])
             .current_dir(&repo_path)
             .output()?;
 
@@ -181,17 +181,17 @@ impl GitHubDocsDownloader {
 
         for entry in WalkDir::new(&docs_path)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .filter(|e| e.file_type().is_file())
         {
             let file_name = entry.file_name().to_string_lossy();
             if Self::is_documentation_file(&file_name) {
                 let relative_path = entry.path().strip_prefix(&repo_path)?;
-                let file_size = entry.metadata().map_err(|e| GitHubDocsError::WalkDirError(e))?.len();
+                let file_size = entry.metadata().map_err(GitHubDocsError::WalkDirError)?.len();
 
                 // Copy file immediately while temp directory exists
                 if !self.config.list_only {
-                    let dest_path = Path::new(&self.config.output_dir).join(&relative_path);
+                    let dest_path = Path::new(&self.config.output_dir).join(relative_path);
                     if let Some(parent) = dest_path.parent() {
                         std::fs::create_dir_all(parent)?;
                     }
@@ -217,9 +217,13 @@ impl GitHubDocsDownloader {
     /// # Arguments
     ///
     /// * `files` - Documentation files that were processed
-    pub async fn download_files(&self, files: &[DocumentationFile]) -> Result<()> {
+    ///
+    /// # Errors
+    ///
+    /// This function does not return errors in the current implementation.
+    pub fn download_files(&self, files: &[DocumentationFile]) -> Result<()> {
         if self.config.list_only {
-            self.print_file_summary(files);
+            Self::print_file_summary(files);
             return Ok(());
         }
 
@@ -227,16 +231,16 @@ impl GitHubDocsDownloader {
         println!("\nDownload complete!");
         println!("  Downloaded {} files to {}", files.len(), self.config.output_dir);
         
-        self.print_file_summary(files);
+        Self::print_file_summary(files);
         Ok(())
     }
 
     /// Print a summary of discovered files.
-    fn print_file_summary(&self, files: &[DocumentationFile]) {
+    fn print_file_summary(files: &[DocumentationFile]) {
         println!("\nTotal documentation files found: {}", files.len());
         
         let total_size: u64 = files.iter().map(|f| f.size.bytes()).sum();
-        println!("Total size: {} bytes", total_size);
+        println!("Total size: {total_size} bytes");
 
         // Group files by directory
         let mut dirs_summary = std::collections::HashMap::new();
@@ -248,7 +252,7 @@ impl GitHubDocsDownloader {
 
         println!("\nFiles by directory:");
         for (dir, (count, size)) in dirs_summary {
-            println!("  {}: {} files ({} bytes)", dir, count, size);
+            println!("  {dir}: {count} files ({size} bytes)");
         }
     }
 
@@ -276,14 +280,14 @@ impl GitHubDocsDownloader {
 
         doc_names.iter().any(|name| {
             filename_lower == *name ||
-            filename_lower.starts_with(&format!("{}.", name)) ||
-            filename_lower.starts_with(&format!("{}_", name)) ||
-            filename_lower.starts_with(&format!("{}-", name))
+            filename_lower.starts_with(&format!("{name}.")) ||
+            filename_lower.starts_with(&format!("{name}_")) ||
+            filename_lower.starts_with(&format!("{name}-"))
         })
     }
 
     /// Get the repository specification.
-    pub fn repo(&self) -> &RepoSpec {
+    #[must_use] pub fn repo(&self) -> &RepoSpec {
         &self.repo
     }
 }

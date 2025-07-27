@@ -77,7 +77,7 @@ pub enum GitHubDocsError {
     #[error("Path manipulation failed")]
     PathError(#[from] std::path::StripPrefixError),
 
-    /// WalkDir error
+    /// `WalkDir` error
     #[error("Directory traversal failed")]
     WalkDirError(#[from] walkdir::Error),
 
